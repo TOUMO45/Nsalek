@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "nsalek-dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3100 },
+    { "name": "nsalek-static", "runtimeExecutable": "node", "runtimeArgs": ["scripts/serve-static.mjs"], "port": 3200 }
+  ]
+}

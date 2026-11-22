@@ -1,0 +1,126 @@
+# Nsalek core benchmark
+
+Node v24.15.0 on win32/x64 (Windows 11 Pro), AMD Ryzen 7 7730U with Radeon Graphics, 16 logical cores, 38.827 GiB RAM
+
+[dataset] generating...
+[dataset] 1000 parties, 50000 movements (26752 obligations, 21030 payments, 2218 adjustments), 36548 allocations, 51983 audit events, generated in 1462 ms
+[dataset] validateLedger: 0 issues
+[dataset] outstanding cross-check: 0 mismatches over 26072 posted obligations
+
+[core] derived views
+  buildIndex: median 59.17 ms
+  workspaceTotals: median 11.25 ms
+  partyBalance × 1,000 parties: median 11.02 ms
+
+[core] search
+  searchParties name "ben": median 8.55 ms
+  searchParties phone fragment "023680": median 11.48 ms
+  searchParties domestic phone prefix "05500236": median 11.66 ms
+  searchParties amount "18000": median 13.72 ms
+  searchParties "" + {receivable, overdue}: median 11.57 ms
+  normalizeText × 26072 obligation description+reference (text fallback): median 59.88 ms
+
+[core] statement, collections, reports
+  partyEffects (heaviest party, 630 movements): median 1.12 ms
+  buildStatement DZD 2026-01-01..today (heaviest party): median 1.51 ms
+  agingReport receivable: median 6.76 ms
+  agingReport payable: median 2.41 ms
+  overdueList receivable: median 4.88 ms
+  reminderQueue: median 10.01 ms
+  dailyActions: median 28.64 ms
+  periodReport 2025-11-23..2026-11-22: median 15.01 ms
+  perPartyBalances: median 10.65 ms
+  validateLedger: median 135.27 ms
+
+[backup]
+  createBackup (unencrypted): median 1734.66 ms
+  serializeBackup (unencrypted): median 435.78 ms
+  createBackup (encrypted, PBKDF2 310000 iterations): median 2833.52 ms
+  parseBackup + openBackup (encrypted): median 1351.99 ms
+  parseBackup + openBackup (unencrypted): median 2601.03 ms
+  backup size: 67.4 MB unencrypted, 89.867 MB encrypted (1 MB = 10^6 bytes)
+
+[backup] breakdown
+  canonical(sortLedger(data)): median 1533.27 ms
+  sha256Hex(payload JSON): median 295.01 ms
+  JSON.parse(payload JSON): median 465.81 ms
+  PBKDF2-SHA-256 key derivation (310000 iterations): median 103.84 ms
+  AES-GCM-256 encrypt (payload bytes): median 213.80 ms
+  bytesToBase64(ciphertext): median 902.33 ms
+  base64ToBytes(ciphertext): median 305.49 ms
+  AES-GCM-256 decrypt (payload bytes): median 102.35 ms
+
+[restore] prepareRestore on subsets of the dataset (single run each)
+  50 parties / 8746 records: 300 ms (issues 0, manifest ok)
+  100 parties / 16244 records: 615 ms (issues 0, manifest ok)
+  200 parties / 29138 records: 918 ms (issues 0, manifest ok)
+  1000 parties / 142482 records: 7866 ms (issues 0, manifest ok)
+
+[commands] MemoryStore: preloading 196965 records...
+[commands] MemoryStore: 500 × recordPayment...
+  mean 5.25 ms/command, validate issues after: 0
+[commands] MemoryStore: 500 × createObligation...
+  mean 0.09 ms/command, validate issues after: 0
+
+[commands] fake-indexeddb: preloading 196965 records...
+[commands] fake-indexeddb: 500 × recordPayment...
+  mean 2.46 ms/command, validate issues after: 0
+[commands] fake-indexeddb: 500 × createObligation...
+  mean 0.20 ms/command, validate issues after: 0
+
+## Results
+
+Dataset: 1000 parties, 50000 movements (26752 obligations, 21030 payments, 2218 adjustments), 36548 allocations, 51983 audit events; validateLedger issues: 0.
+
+| Group | Operation | Median ms | Min ms | Max ms | Runs | Result |
+|---|---|---:|---:|---:|---:|---|
+| Index & balances | buildIndex | 59.17 | 44.68 | 76.87 | 7 | 26752 obligations, 21030 payments indexed |
+| Index & balances | workspaceTotals | 11.25 | 10.19 | 23.62 | 7 | DZD: receivable 3595507300 / payable 946670000 minor; EUR: receivable 10731099 / payable 2257049 minor |
+| Index & balances | partyBalance × 1,000 parties | 11.02 | 10.30 | 12.52 | 7 | 1000 balances |
+| Search | searchParties name "ben" | 8.55 | 8.16 | 11.31 | 7 | 118 matches {"name":118} |
+| Search | searchParties phone fragment "023680" | 11.48 | 10.03 | 12.18 | 7 | 1 matches {"phone":1} |
+| Search | searchParties domestic phone prefix "05500236" | 11.66 | 10.35 | 16.01 | 7 | 2 matches {"phone":2}; expected party pty_c026245 found |
+| Search | searchParties amount "18000" | 13.72 | 9.95 | 18.82 | 7 | 31 matches {"amount":31} |
+| Search | searchParties "" + {receivable, overdue} | 11.57 | 9.35 | 15.06 | 7 | 397 matches {"all":397} |
+| Search | normalizeText × 26072 obligation description+reference (text fallback) | 59.88 | 53.52 | 76.03 | 7 | 440767 normalized chars |
+| Statement | partyEffects (heaviest party, 630 movements) | 1.12 | 0.58 | 1.33 | 7 | 617 effects |
+| Statement | buildStatement DZD 2026-01-01..today (heaviest party) | 1.51 | 0.75 | 1.91 | 7 | receivable: 436 rows, closing 965000 |
+| Collections | agingReport receivable | 6.76 | 5.58 | 8.50 | 7 | DZD: 1747 open; EUR: 299 open |
+| Collections | agingReport payable | 2.41 | 1.71 | 3.38 | 7 | DZD: 445 open; EUR: 70 open |
+| Collections | overdueList receivable | 4.88 | 3.73 | 7.43 | 7 | 737 overdue debts |
+| Collections | reminderQueue | 10.01 | 8.19 | 16.75 | 7 | 391 parties queued |
+| Collections | dailyActions | 28.64 | 25.15 | 38.92 | 7 | 799 actions |
+| Reports | periodReport 2025-11-23..2026-11-22 | 15.01 | 11.21 | 25.98 | 7 | DZD: 16445 obligations, 11905 payments; EUR: 1785 obligations, 3099 payments |
+| Reports | perPartyBalances | 10.65 | 9.16 | 12.96 | 7 | 1178 rows |
+| Integrity | validateLedger | 135.27 | 105.11 | 167.60 | 7 | 0 issues |
+| Backup | createBackup (unencrypted) | 1734.66 | 1651.50 | 1785.50 | 5 | payload sha256 4318309d2c7d… |
+| Backup | serializeBackup (unencrypted) | 435.78 | 334.03 | 499.21 | 5 | 67400184 bytes |
+| Backup | createBackup (encrypted, PBKDF2 310000 iterations) | 2833.52 | 2554.06 | 3117.23 | 5 | iterations in envelope: 310000 |
+| Backup | parseBackup + openBackup (encrypted) | 1351.99 | 1269.04 | 1465.06 | 5 | 142482 records restored in memory |
+| Backup | parseBackup + openBackup (unencrypted) | 2601.03 | 2526.50 | 2641.98 | 5 | 142482 records restored in memory |
+| Backup breakdown | canonical(sortLedger(data)) | 1533.27 | 1207.01 | 1792.00 | 5 | 67250297 chars |
+| Backup breakdown | sha256Hex(payload JSON) | 295.01 | 235.32 | 327.31 | 5 |  |
+| Backup breakdown | JSON.parse(payload JSON) | 465.81 | 410.58 | 582.29 | 5 |  |
+| Backup breakdown | PBKDF2-SHA-256 key derivation (310000 iterations) | 103.84 | 73.07 | 115.00 | 5 |  |
+| Backup breakdown | AES-GCM-256 encrypt (payload bytes) | 213.80 | 157.25 | 311.21 | 5 | 67399322 bytes |
+| Backup breakdown | bytesToBase64(ciphertext) | 902.33 | 724.70 | 1205.47 | 5 | 89865764 chars |
+| Backup breakdown | base64ToBytes(ciphertext) | 305.49 | 273.89 | 403.56 | 5 |  |
+| Backup breakdown | AES-GCM-256 decrypt (payload bytes) | 102.35 | 99.44 | 172.16 | 5 |  |
+
+Backup size: 67400184 bytes (67.4 MB) unencrypted, 89866762 bytes (89.867 MB) encrypted.
+
+| prepareRestore | Records | ms (1 run) |
+|---|---:|---:|
+| 50 parties | 8746 | 299.8 |
+| 100 parties | 16244 | 615.0 |
+| 200 parties | 29138 | 918.4 |
+| 1000 parties | 142482 | 7866.5 |
+
+| Store | Command | N | Preload ms | loadLedger ms | Total ms | Mean ms/cmd | Median | p95 | Max | Issues after |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| MemoryStore (in-process Map store used by tests and restore validation) | recordPayment | 500 | 1928 | 1053 | 2625 | 5.25 | 5.06 | 7.47 | 32.16 | 0 |
+| MemoryStore (in-process Map store used by tests and restore validation) | createObligation | 500 | 1928 | 1053 | 44 | 0.09 | 0.07 | 0.16 | 0.85 | 0 |
+| fake-indexeddb in Node — NOT representative of browser IndexedDB | recordPayment | 500 | 49351 | 3432 | 1228 | 2.46 | 1.46 | 7.02 | 62.67 | 0 |
+| fake-indexeddb in Node — NOT representative of browser IndexedDB | createObligation | 500 | 49351 | 3432 | 100 | 0.20 | 0.17 | 0.35 | 0.62 | 0 |
+
+Written B:\Desktop\Nsalek\bench-results\node-2026-11-22.json

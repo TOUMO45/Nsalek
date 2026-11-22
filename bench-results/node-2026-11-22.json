@@ -1,0 +1,540 @@
+{
+  "tool": "scripts/bench.ts",
+  "environment": {
+    "runAt": "2026-11-22T20:00:31.821Z",
+    "node": "v24.15.0",
+    "v8": "13.6.233.17-node.48",
+    "platform": "win32",
+    "arch": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26300",
+    "osVersion": "Windows 11 Pro",
+    "cpuModel": "AMD Ryzen 7 7730U with Radeon Graphics",
+    "logicalCores": 16,
+    "totalMemGiB": 38.827,
+    "freeMemGiBAtStart": 21.002,
+    "timezone": "Africa/Algiers",
+    "gcExposed": false
+  },
+  "dataset": {
+    "seed": 20261122,
+    "clock": "2026-11-22T10:00:00.000Z",
+    "today": "2026-11-22",
+    "workspace": {
+      "id": "ws_bench",
+      "currency": "DZD",
+      "mode": "business",
+      "timezone": "Africa/Algiers"
+    },
+    "counts": {
+      "workspaces": 1,
+      "parties": 1000,
+      "obligations": 26752,
+      "adjustments": 2218,
+      "payments": 21030,
+      "allocations": 36548,
+      "installmentPlans": 150,
+      "recurringPlans": 0,
+      "promises": 300,
+      "reminders": 2500,
+      "invoices": 0,
+      "notes": 0,
+      "attachments": 0,
+      "audit": 51983,
+      "importBatches": 0
+    },
+    "totalRecords": 142482,
+    "commandRecords": 54483,
+    "movements": {
+      "total": 50000,
+      "obligations": 26752,
+      "payments": 21030,
+      "adjustments": 2218
+    },
+    "parties": {
+      "total": 1000,
+      "persons": 731,
+      "organizations": 269,
+      "withPhone": 708,
+      "withTags": 390,
+      "archived": 19,
+      "snoozed": 6,
+      "movementsPerParty": {
+        "min": 3,
+        "median": 31,
+        "max": 630
+      }
+    },
+    "obligations": {
+      "posted": 26072,
+      "draft": 283,
+      "voided": 397,
+      "receivable": 21075,
+      "payable": 5677,
+      "dzd": 24116,
+      "eur": 2636,
+      "withDueDate": 17319,
+      "dueInPast": 15049,
+      "dueTodayOrFuture": 2270,
+      "disputed": 268,
+      "openPosted": 2561,
+      "openOverdue": 930
+    },
+    "payments": {
+      "posted": 20895,
+      "reversed": 135,
+      "withAdvance": 129,
+      "eur": 4182
+    },
+    "allocations": {
+      "active": 36309,
+      "reversed": 239
+    },
+    "adjustments": {
+      "increase": 575,
+      "decrease": 546,
+      "waiver": 664,
+      "write_off": 433
+    },
+    "heaviestParty": {
+      "id": "pty_c025121",
+      "movements": 630
+    },
+    "generationMs": 1461.994,
+    "validateLedgerIssues": 0,
+    "outstandingCrossCheckMismatches": 0,
+    "payloadSha256": "4318309d2c7dd99c1dab45df2cf0d14e7146cf266cef26337965e1bf38c84fdc"
+  },
+  "memoryAfterGeneration": {
+    "heapUsedMiB": 176.028,
+    "rssMiB": 330.641
+  },
+  "timing": {
+    "method": "performance.now(); median/min/max over `runs` timed runs after `warmup` untimed runs",
+    "fastRuns": 7,
+    "slowRuns": 5
+  },
+  "results": [
+    {
+      "group": "Index & balances",
+      "name": "buildIndex",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 59.167,
+      "minMs": 44.677,
+      "maxMs": 76.871,
+      "result": "26752 obligations, 21030 payments indexed"
+    },
+    {
+      "group": "Index & balances",
+      "name": "workspaceTotals",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 11.254,
+      "minMs": 10.191,
+      "maxMs": 23.623,
+      "result": "DZD: receivable 3595507300 / payable 946670000 minor; EUR: receivable 10731099 / payable 2257049 minor"
+    },
+    {
+      "group": "Index & balances",
+      "name": "partyBalance × 1,000 parties",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 11.017,
+      "minMs": 10.299,
+      "maxMs": 12.517,
+      "result": "1000 balances"
+    },
+    {
+      "group": "Search",
+      "name": "searchParties name \"ben\"",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 8.553,
+      "minMs": 8.163,
+      "maxMs": 11.309,
+      "result": "118 matches {\"name\":118}"
+    },
+    {
+      "group": "Search",
+      "name": "searchParties phone fragment \"023680\"",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 11.479,
+      "minMs": 10.034,
+      "maxMs": 12.179,
+      "result": "1 matches {\"phone\":1}"
+    },
+    {
+      "group": "Search",
+      "name": "searchParties domestic phone prefix \"05500236\"",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 11.661,
+      "minMs": 10.346,
+      "maxMs": 16.013,
+      "result": "2 matches {\"phone\":2}; expected party pty_c026245 found"
+    },
+    {
+      "group": "Search",
+      "name": "searchParties amount \"18000\"",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 13.719,
+      "minMs": 9.945,
+      "maxMs": 18.815,
+      "result": "31 matches {\"amount\":31}"
+    },
+    {
+      "group": "Search",
+      "name": "searchParties \"\" + {receivable, overdue}",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 11.574,
+      "minMs": 9.347,
+      "maxMs": 15.063,
+      "result": "397 matches {\"all\":397}"
+    },
+    {
+      "group": "Search",
+      "name": "normalizeText × 26072 obligation description+reference (text fallback)",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 59.883,
+      "minMs": 53.523,
+      "maxMs": 76.031,
+      "result": "440767 normalized chars"
+    },
+    {
+      "group": "Statement",
+      "name": "partyEffects (heaviest party, 630 movements)",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 1.124,
+      "minMs": 0.582,
+      "maxMs": 1.332,
+      "result": "617 effects"
+    },
+    {
+      "group": "Statement",
+      "name": "buildStatement DZD 2026-01-01..today (heaviest party)",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 1.507,
+      "minMs": 0.752,
+      "maxMs": 1.914,
+      "result": "receivable: 436 rows, closing 965000"
+    },
+    {
+      "group": "Collections",
+      "name": "agingReport receivable",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 6.762,
+      "minMs": 5.576,
+      "maxMs": 8.498,
+      "result": "DZD: 1747 open; EUR: 299 open"
+    },
+    {
+      "group": "Collections",
+      "name": "agingReport payable",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 2.411,
+      "minMs": 1.714,
+      "maxMs": 3.377,
+      "result": "DZD: 445 open; EUR: 70 open"
+    },
+    {
+      "group": "Collections",
+      "name": "overdueList receivable",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 4.877,
+      "minMs": 3.731,
+      "maxMs": 7.43,
+      "result": "737 overdue debts"
+    },
+    {
+      "group": "Collections",
+      "name": "reminderQueue",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 10.014,
+      "minMs": 8.19,
+      "maxMs": 16.751,
+      "result": "391 parties queued"
+    },
+    {
+      "group": "Collections",
+      "name": "dailyActions",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 28.639,
+      "minMs": 25.151,
+      "maxMs": 38.924,
+      "result": "799 actions"
+    },
+    {
+      "group": "Reports",
+      "name": "periodReport 2025-11-23..2026-11-22",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 15.011,
+      "minMs": 11.205,
+      "maxMs": 25.978,
+      "result": "DZD: 16445 obligations, 11905 payments; EUR: 1785 obligations, 3099 payments"
+    },
+    {
+      "group": "Reports",
+      "name": "perPartyBalances",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 10.648,
+      "minMs": 9.165,
+      "maxMs": 12.965,
+      "result": "1178 rows"
+    },
+    {
+      "group": "Integrity",
+      "name": "validateLedger",
+      "runs": 7,
+      "warmup": 1,
+      "medianMs": 135.27,
+      "minMs": 105.111,
+      "maxMs": 167.597,
+      "result": "0 issues"
+    },
+    {
+      "group": "Backup",
+      "name": "createBackup (unencrypted)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 1734.661,
+      "minMs": 1651.5,
+      "maxMs": 1785.5,
+      "result": "payload sha256 4318309d2c7d…"
+    },
+    {
+      "group": "Backup",
+      "name": "serializeBackup (unencrypted)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 435.784,
+      "minMs": 334.03,
+      "maxMs": 499.212,
+      "result": "67400184 bytes"
+    },
+    {
+      "group": "Backup",
+      "name": "createBackup (encrypted, PBKDF2 310000 iterations)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 2833.52,
+      "minMs": 2554.062,
+      "maxMs": 3117.227,
+      "result": "iterations in envelope: 310000"
+    },
+    {
+      "group": "Backup",
+      "name": "parseBackup + openBackup (encrypted)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 1351.991,
+      "minMs": 1269.042,
+      "maxMs": 1465.055,
+      "result": "142482 records restored in memory"
+    },
+    {
+      "group": "Backup",
+      "name": "parseBackup + openBackup (unencrypted)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 2601.033,
+      "minMs": 2526.497,
+      "maxMs": 2641.979,
+      "result": "142482 records restored in memory"
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "canonical(sortLedger(data))",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 1533.265,
+      "minMs": 1207.011,
+      "maxMs": 1791.997,
+      "result": "67250297 chars"
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "sha256Hex(payload JSON)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 295.01,
+      "minMs": 235.317,
+      "maxMs": 327.315,
+      "result": ""
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "JSON.parse(payload JSON)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 465.813,
+      "minMs": 410.579,
+      "maxMs": 582.288,
+      "result": ""
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "PBKDF2-SHA-256 key derivation (310000 iterations)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 103.838,
+      "minMs": 73.071,
+      "maxMs": 114.995,
+      "result": ""
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "AES-GCM-256 encrypt (payload bytes)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 213.8,
+      "minMs": 157.251,
+      "maxMs": 311.206,
+      "result": "67399322 bytes"
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "bytesToBase64(ciphertext)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 902.333,
+      "minMs": 724.703,
+      "maxMs": 1205.47,
+      "result": "89865764 chars"
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "base64ToBytes(ciphertext)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 305.493,
+      "minMs": 273.889,
+      "maxMs": 403.564,
+      "result": ""
+    },
+    {
+      "group": "Backup breakdown",
+      "name": "AES-GCM-256 decrypt (payload bytes)",
+      "runs": 5,
+      "warmup": 1,
+      "medianMs": 102.346,
+      "minMs": 99.44,
+      "maxMs": 172.16,
+      "result": ""
+    }
+  ],
+  "backupSize": {
+    "unencryptedBytes": 67400184,
+    "encryptedBytes": 89866762,
+    "unencryptedMB": 67.4,
+    "encryptedMB": 89.867,
+    "pbkdf2Iterations": 310000
+  },
+  "prepareRestore": {
+    "note": "single run per size; prepareRestore = openBackup + load into a temporary MemoryStore + readAll + validateLedger + manifestMatches",
+    "runs": [
+      {
+        "parties": 50,
+        "records": 8746,
+        "ms": 299.819,
+        "issues": 0,
+        "manifestOk": true
+      },
+      {
+        "parties": 100,
+        "records": 16244,
+        "ms": 615.01,
+        "issues": 0,
+        "manifestOk": true
+      },
+      {
+        "parties": 200,
+        "records": 29138,
+        "ms": 918.426,
+        "issues": 0,
+        "manifestOk": true
+      },
+      {
+        "parties": 1000,
+        "records": 142482,
+        "ms": 7866.469,
+        "issues": 0,
+        "manifestOk": true
+      }
+    ]
+  },
+  "commands": {
+    "note": "N sequential execute() calls, each its own read-write transaction, against a store preloaded with the full dataset plus its command records. Payments: 100 DA, auto-allocated. Obligations: 2,500 DA, due in 30 days.",
+    "results": [
+      {
+        "store": "MemoryStore",
+        "label": "MemoryStore (in-process Map store used by tests and restore validation)",
+        "command": "recordPayment",
+        "n": 500,
+        "preloadMs": 1927.699,
+        "loadAllMs": 1052.83,
+        "totalMs": 2624.759,
+        "perCommandMeanMs": 5.25,
+        "perCommandMedianMs": 5.06,
+        "perCommandP95Ms": 7.467,
+        "perCommandMaxMs": 32.156,
+        "validateIssuesAfter": 0
+      },
+      {
+        "store": "MemoryStore",
+        "label": "MemoryStore (in-process Map store used by tests and restore validation)",
+        "command": "createObligation",
+        "n": 500,
+        "preloadMs": 1927.699,
+        "loadAllMs": 1052.83,
+        "totalMs": 44.389,
+        "perCommandMeanMs": 0.089,
+        "perCommandMedianMs": 0.07,
+        "perCommandP95Ms": 0.162,
+        "perCommandMaxMs": 0.85,
+        "validateIssuesAfter": 0
+      },
+      {
+        "store": "fake-indexeddb",
+        "label": "fake-indexeddb in Node — NOT representative of browser IndexedDB",
+        "command": "recordPayment",
+        "n": 500,
+        "preloadMs": 49350.697,
+        "loadAllMs": 3432.035,
+        "totalMs": 1228.433,
+        "perCommandMeanMs": 2.457,
+        "perCommandMedianMs": 1.461,
+        "perCommandP95Ms": 7.018,
+        "perCommandMaxMs": 62.669,
+        "validateIssuesAfter": 0
+      },
+      {
+        "store": "fake-indexeddb",
+        "label": "fake-indexeddb in Node — NOT representative of browser IndexedDB",
+        "command": "createObligation",
+        "n": 500,
+        "preloadMs": 49350.697,
+        "loadAllMs": 3432.035,
+        "totalMs": 100.361,
+        "perCommandMeanMs": 0.201,
+        "perCommandMedianMs": 0.165,
+        "perCommandP95Ms": 0.351,
+        "perCommandMaxMs": 0.618,
+        "validateIssuesAfter": 0
+      }
+    ]
+  }
+}

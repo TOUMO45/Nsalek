@@ -1,0 +1,17 @@
+/node_modules
+/.next/
+/out/
+/coverage
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+npm-debug.log*
+# env files: only the example is committed
+.env*
+!.env.example
+# local tool state
+/.claude/settings.local.json
+/bench-results/*.local.json
+
+# process state of the delivery supervisor (local only)
+/.supervisor/

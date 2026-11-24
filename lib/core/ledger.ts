@@ -66,7 +66,8 @@ export type ObligationStatus = "draft" | "voided" | "open" | "partly_paid" | "pa
 export function obligationStatus(ob: Obligation, f: ObligationFigures): ObligationStatus {
   if (ob.state === "draft") return "draft";
   if (ob.state === "voided") return "voided";
-  if (f.outstanding > 0) return f.settled > 0 ? "partly_paid" : "open";
+  // "Partly paid" means money (or an explicit offset) came in; a discount or correction alone leaves it open.
+  if (f.outstanding > 0) return f.paid + f.netted > 0 ? "partly_paid" : "open";
   const forgiven = f.waived + f.writtenOff;
   if (forgiven > 0) return f.paid + f.netted + f.decreased > 0 ? "closed" : "waived";
   return "paid";
@@ -364,20 +365,26 @@ export function partyEffects(idx: LedgerIndex, partyId: string): Effect[] {
   const obById = new Map(obs.map((o) => [o.id, o]));
   for (const p of idx.payByParty.get(partyId) ?? []) {
     if (p.state !== "posted") continue;
-    const byDate = new Map<string, Minor>();
+    // Allocations recorded with the payment form the "payment" entry; an advance applied later (even the
+    // same day) is its own entry at the time it was applied, so running balances stay in order.
+    const groups = new Map<string, { date: ISODate; at: string; initial: boolean; amount: Minor }>();
     for (const a of activeAllocations(idx.allocByPay.get(p.id))) {
       if (!obById.has(a.obligationId)) continue;
-      byDate.set(a.date, (byDate.get(a.date) ?? 0) + a.amount);
+      const initial = a.createdAt <= p.createdAt;
+      const k = initial ? `${a.date}` : `${a.date}:${a.createdAt}`;
+      const g = groups.get(k) ?? { date: a.date, at: initial ? (a.date === p.date ? p.createdAt : a.date + "T23:59:59Z") : a.createdAt, initial, amount: 0 };
+      g.amount += a.amount;
+      groups.set(k, g);
     }
-    for (const [date, amount] of byDate) {
+    for (const [k, g] of groups) {
       out.push({
-        key: `p:${p.id}:${date}`,
-        date,
-        at: date === p.date ? p.createdAt : date + "T23:59:59Z",
+        key: `p:${p.id}:${k}`,
+        date: g.date,
+        at: g.at,
         direction: p.direction,
         currency: p.currency,
-        delta: -amount,
-        kind: date === p.date ? "payment" : "advance_applied",
+        delta: -g.amount,
+        kind: g.initial && g.date === p.date ? "payment" : "advance_applied",
         sourceId: p.id,
         paymentId: p.id,
       });
@@ -540,4 +547,34 @@ export function findDuplicates(parties: Party[], candidate: { displayName: strin
       !p.mergedIntoId &&
       ((name && normalizeText(p.displayName) === name) || p.phones.some((ph) => keys.has(phoneKey(ph)))),
   );
+}
+
+/** Posted payments of a person that still carry an unused advance, oldest first. */
+export function advancePayments(idx: LedgerIndex, partyId: string, direction: Direction, currency: CurrencyCode): { payment: Payment; unallocated: Minor }[] {
+  return (idx.payByParty.get(partyId) ?? [])
+    .filter((p) => p.state === "posted" && p.direction === direction && p.currency === currency)
+    .map((payment) => ({ payment, unallocated: paymentFiguresOf(idx, payment).unallocated }))
+    .filter((x) => x.unallocated > 0)
+    .sort((a, b) => a.payment.date.localeCompare(b.payment.date) || a.payment.createdAt.localeCompare(b.payment.createdAt));
+}
+
+export type ReceiptFigures ={ lines: { obligationId: string; amount: Minor; remainingAfter: Minor }[]; advance: Minor; remainingAfter: Minor };
+
+/**
+ * What a receipt shows: the payment's own allocations and the balances as they stood right after it
+ * was recorded. Later payments, reversals, corrections, advance applications and new debts never
+ * change a receipt. Drafts carry no posting time, so a draft posted later counts from its creation.
+ */
+export function receiptFigures(idx: LedgerIndex, p: Payment): ReceiptFigures {
+  const at = p.createdAt;
+  const asOf = <T extends { createdAt: string; reversedAt?: string | null }>(list: T[] | undefined): T[] =>
+    (list ?? []).filter((x) => x.createdAt <= at).map((x) => (x.reversedAt && x.reversedAt > at ? { ...x, reversedAt: null } : x));
+  const outstandingAt = (ob: Obligation | undefined): Minor => {
+    if (!ob || ob.createdAt > at || ob.state === "draft") return 0;
+    const voided = ob.state === "voided" && (!ob.voidedAt || ob.voidedAt <= at);
+    return obligationFigures({ ...ob, state: voided ? "voided" : "posted" }, asOf(idx.allocByOb.get(ob.id)), asOf(idx.adjByOb.get(ob.id))).outstanding;
+  };
+  const lines = activeAllocations(asOf(idx.allocByPay.get(p.id))).map((a) => ({ obligationId: a.obligationId, amount: a.amount, remainingAfter: outstandingAt(idx.obligation.get(a.obligationId)) }));
+  const remainingAfter = (idx.obByParty.get(p.partyId) ?? []).filter((o) => o.direction === p.direction && o.currency === p.currency).reduce((n, o) => n + outstandingAt(o), 0);
+  return { lines, advance: p.amount - lines.reduce((n, l) => n + l.amount, 0), remainingAfter };
 }

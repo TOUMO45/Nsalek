@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, CalendarClock, Eye, EyeOff, Home as HomeIcon, Lock, Menu, Plus, Users, WifiOff } from "lucide-react";
 import { AppProvider, useApp } from "@/lib/ui/state";
 import { SheetContext, useSheet, type SheetSpec } from "@/lib/ui/sheets";
-import { Toast, go, useOnline, useRoute } from "@/lib/ui/components";
+import { AskProvider, Toast, go, useOnline, useRoute } from "@/lib/ui/components";
 import { verifyPin } from "@/lib/core/crypto";
+import { pinDelayMs } from "@/lib/core/pin";
 import { dailyActions, inQuietHours } from "@/lib/core/collections";
 import { genericNotification } from "@/lib/core/messages";
 import { timeIn } from "@/lib/core/dates";
@@ -50,9 +51,11 @@ function Root() {
   if (!app.ws) return <Onboarding />;
   return (
     <SheetContext.Provider value={setSheet}>
-      <Shell />
-      {sheet && <SheetHost spec={sheet} onClose={() => setSheet(null)} />}
-      <Toast />
+      <AskProvider>
+        <Shell />
+        {sheet && <SheetHost spec={sheet} onClose={() => setSheet(null)} />}
+        <Toast />
+      </AskProvider>
     </SheetContext.Provider>
   );
 }
@@ -254,15 +257,45 @@ function Onboarding() {
 }
 
 function LockScreen() {
-  const { t, meta, setLocked } = useApp();
+  const { t, meta, setLocked, saveMeta } = useApp();
   const [pin, setPin] = useState("");
   const [err, setErr] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const [checking, setChecking] = useState(false);
+  const failures = meta?.pinFailures ?? 0;
+  // One check at a time, counted immediately: PIN checks are slow on purpose, so overlapping
+  // attempts must not all read the same stale count.
+  const busy = useRef(false);
+  const count = useRef(failures);
+  useEffect(() => {
+    count.current = meta?.pinFailures ?? 0;
+  }, [meta?.pinFailures]);
+  const waitUntil = meta?.pinLastFailAt ? Date.parse(meta.pinLastFailAt) + pinDelayMs(failures) : 0;
+  const waitSeconds = Math.max(0, Math.ceil((waitUntil - now) / 1000));
+  useEffect(() => {
+    if (!waitSeconds) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [waitSeconds]);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (meta?.pin && (await verifyPin(pin, meta.pin))) setLocked(false);
-    else {
-      setErr(true);
-      setPin("");
+    if (busy.current || waitUntil > Date.now()) return;
+    busy.current = true;
+    setChecking(true);
+    try {
+      if (meta?.pin && (await verifyPin(pin, meta.pin))) {
+        if (count.current) await saveMeta({ pinFailures: 0, pinLastFailAt: null });
+        setLocked(false);
+      } else {
+        count.current += 1;
+        await saveMeta({ pinFailures: count.current, pinLastFailAt: new Date().toISOString() });
+        setNow(Date.now());
+        setErr(true);
+        setPin("");
+      }
+    } finally {
+      busy.current = false;
+      setChecking(false);
     }
   };
   return (
@@ -272,8 +305,13 @@ function LockScreen() {
         {t("enterPin")}
       </label>
       <input id="pin" className="input num text-center text-[24px] tracking-[0.4em]" type="password" inputMode="numeric" autoComplete="off" autoFocus value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))} aria-invalid={err} />
-      {err && <p className="error-text">{t("wrongPin")}</p>}
-      <button className="btn btn-primary" disabled={pin.length < 4}>
+      {err && !waitSeconds && <p className="error-text">{t("wrongPin")}</p>}
+      {waitSeconds > 0 && (
+        <p className="error-text" role="status">
+          {t("pinWait").replace("{s}", String(waitSeconds))}
+        </p>
+      )}
+      <button className="btn btn-primary" disabled={pin.length < 4 || waitSeconds > 0 || checking}>
         {t("unlock")}
       </button>
       <p className="help">{t("pinHelp")}</p>

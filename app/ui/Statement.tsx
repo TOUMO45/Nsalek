@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
 import { translate } from "@/lib/ui/i18n";
-import { buildStatement, partyBalance, paymentFiguresOf, figuresOf, type LedgerIndex, type Statement } from "@/lib/core/ledger";
+import { buildStatement, receiptFigures, type LedgerIndex, type Statement } from "@/lib/core/ledger";
 import { formatMoney, type Lang } from "@/lib/core/money";
 import { addDays, formatDate, formatDateTime } from "@/lib/core/dates";
 import { displayPhone } from "@/lib/core/text";
@@ -183,14 +183,13 @@ export function StatementPage({ partyId, query }: { partyId: string; query: URLS
 }
 
 export function ReceiptPage({ paymentId }: { paymentId: string }) {
-  const { idx, ws, today, lang } = useApp();
+  const { idx, ws, lang } = useApp();
   const p = idx?.payment.get(paymentId);
   if (!idx || !ws || !p) return null;
   const t = (k: Parameters<typeof translate>[1]) => translate(lang, k);
   const party = idx.party.get(p.partyId)!;
-  const allocs = (idx.allocByPay.get(p.id) ?? []).filter((a) => !a.reversedAt);
-  const after = partyBalance(idx, p.partyId, today).get(p.currency);
-  const f = paymentFiguresOf(idx, p);
+  // Figures as they stood when the payment was recorded, so a reprint never changes.
+  const r = receiptFigures(idx, p);
   return (
     <div>
       <PrintBar />
@@ -227,27 +226,27 @@ export function ReceiptPage({ paymentId }: { paymentId: string }) {
                 {t(`m_${p.method}` as never)} {p.reference && `· ${p.reference}`}
               </td>
             </tr>
-            {allocs.map((a) => {
-              const ob = idx.obligation.get(a.obligationId);
+            {r.lines.map((l) => {
+              const ob = idx.obligation.get(l.obligationId);
               return (
-                <tr key={a.id}>
+                <tr key={l.obligationId}>
                   <td>{ob?.description || (ob ? formatDate(ob.date, lang) : "")}</td>
                   <td>
-                    {M(a.amount, p.currency, lang)} → {t("remaining")} {ob ? M(figuresOf(idx, ob).outstanding, p.currency, lang) : ""}
+                    {M(l.amount, p.currency, lang)} → {t("remaining")} {M(l.remainingAfter, p.currency, lang)}
                   </td>
                 </tr>
               );
             })}
-            {f.unallocated > 0 && (
+            {r.advance > 0 && (
               <tr>
                 <td>{t("advance")}</td>
-                <td>{M(f.unallocated, p.currency, lang)}</td>
+                <td>{M(r.advance, p.currency, lang)}</td>
               </tr>
             )}
             <tr>
               <td>{t("remainingAfter")}</td>
               <td>
-                <b>{M(p.direction === "receivable" ? (after?.receivable ?? 0) : (after?.payable ?? 0), p.currency, lang)}</b>
+                <b>{M(r.remainingAfter, p.currency, lang)}</b>
               </td>
             </tr>
           </tbody>

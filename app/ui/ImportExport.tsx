@@ -2,8 +2,8 @@
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { useApp, newCommandId } from "@/lib/ui/state";
-import { Field, Money, downloadText } from "@/lib/ui/components";
-import { errorMessage } from "@/lib/ui/i18n";
+import { Field, Money, downloadText, useAsk } from "@/lib/ui/components";
+import { errorMessage, importErrorMessage, storeLabel, type Key } from "@/lib/ui/i18n";
 import { exportFileName, exportObligations, exportParties, exportPayments, type Delimiter } from "@/lib/core/csv";
 import {
   IMPORT_FIELDS,
@@ -23,21 +23,22 @@ import {
 import { agrovetCommitPayload, planAgrovetImport, type AgrovetImportPlan } from "@/lib/migration/agrovet";
 import { formatDateTime } from "@/lib/core/dates";
 
-const FIELD_LABEL: Record<ImportField, ["type" | "displayName" | "phone" | "amount" | "currency" | "date" | "dueDate" | "description" | "reference" | "status", string]> = {
-  type: ["type", "debt / payment"],
-  partyName: ["displayName", ""],
-  phone: ["phone", ""],
-  direction: ["status", "receivable / payable · ليك / عليك"],
-  amount: ["amount", ""],
-  currency: ["currency", ""],
-  date: ["date", ""],
-  dueDate: ["dueDate", ""],
-  description: ["description", ""],
-  reference: ["reference", ""],
+const FIELD_LABEL: Record<ImportField, [Key, Key | null]> = {
+  type: ["type", "csvTypeHint"],
+  partyName: ["displayName", null],
+  phone: ["phone", null],
+  direction: ["csvDirection", "csvDirectionHint"],
+  amount: ["amount", null],
+  currency: ["currency", null],
+  date: ["date", null],
+  dueDate: ["dueDate", null],
+  description: ["description", null],
+  reference: ["reference", null],
 };
 
 export function CsvPage() {
   const { t, data, ws, today, lang, run, toast } = useApp();
+  const ask = useAsk();
   const [delimiter, setDelimiter] = useState<Delimiter>(lang === "en" ? "," : ";");
   const [text, setText] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
@@ -106,7 +107,7 @@ export function CsvPage() {
     }
   };
   const reverse = async (batchId: string) => {
-    const reason = window.prompt(t("reason"));
+    const reason = await ask({ title: t("undoImport"), reason: true, confirmLabel: t("undoImport"), danger: true });
     if (!reason) return;
     try {
       await run("reverseImport", { batchId, reason });
@@ -128,7 +129,7 @@ export function CsvPage() {
       </h1>
       <section className="card stack p-4">
         <h2 className="section-title">{t("exportCsv")}</h2>
-        <Field label="Delimiter">
+        <Field label={t("csvDelimiter")}>
           <select className="input" value={delimiter} onChange={(e) => setDelimiter(e.target.value as Delimiter)}>
             <option value=";">; (Excel FR)</option>
             <option value=",">, (Excel EN)</option>
@@ -162,7 +163,7 @@ export function CsvPage() {
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {IMPORT_FIELDS.map((f) => (
-                <Field key={f} label={`${t(FIELD_LABEL[f][0])}${REQUIRED_FIELDS.includes(f) ? " *" : ""}`} help={FIELD_LABEL[f][1] || undefined}>
+                <Field key={f} label={`${t(FIELD_LABEL[f][0])}${REQUIRED_FIELDS.includes(f) ? " *" : ""}`} help={FIELD_LABEL[f][1] ? t(FIELD_LABEL[f][1]) : undefined}>
                   <select className="input" value={refValue(mapping[f])} onChange={(e) => setRef(f, e.target.value)}>
                     <option value="">—</option>
                     {headers.map((h, i) => (
@@ -245,11 +246,11 @@ export function CsvPage() {
                     <tr key={r.line}>
                       <td className="num">{r.line}</td>
                       <td>
-                        <span className={`chip ${r.status === "ok" ? "chip-owed" : r.status === "error" ? "chip-late" : "chip-soon"}`}>{r.status}</span>
-                        {r.errors.length > 0 && <span className="help block">{r.errors.join(", ")}</span>}
+                        <span className={`chip ${r.status === "ok" ? "chip-owed" : r.status === "error" ? "chip-late" : "chip-soon"}`}>{t(`imp_${r.status}`)}</span>
+                        {r.errors.length > 0 && <span className="help block">{r.errors.map((e) => importErrorMessage(lang, e)).join(" ")}</span>}
                       </td>
                       <td>
-                        {r.preview.partyName} {r.preview.party && <span className="help">({r.preview.party})</span>}
+                        {r.preview.partyName} {r.preview.party && <span className="help">({t(`impParty_${r.preview.party}`)})</span>}
                       </td>
                       <td className="amount">{r.preview.amount !== null && r.preview.currency ? <Money minor={r.preview.amount} currency={r.preview.currency} /> : ""}</td>
                     </tr>
@@ -278,7 +279,7 @@ export function CsvPage() {
               <span className="flex-1">
                 <span className="block font-semibold">{b.fileName}</span>
                 <span className="help">
-                  <bdi className="num">{formatDateTime(b.createdAt, ws?.timezone)}</bdi> · {Object.entries(b.counts).map(([k, v]) => `${k}: ${v}`).join(", ")}
+                  <bdi className="num">{formatDateTime(b.createdAt, ws?.timezone)}</bdi> · {Object.entries(b.counts).map(([k, v]) => `${storeLabel(lang, k)}: ${v}`).join(", ")}
                 </span>
               </span>
               {b.state === "committed" ? (
@@ -388,9 +389,10 @@ export function LegacyImportPage() {
           <p className="help">
             {Object.entries(r.counts)
               .filter(([k]) => k !== "openingBalances")
-              .map(([k, v]) => `${k}: ${(v as { imported: number; source: number }).imported}/${(v as { source: number }).source}`)
+              .map(([k, v]) => `${storeLabel(lang, k)}: ${(v as { imported: number; source: number }).imported}/${(v as { source: number }).source}`)
               .join(" · ")}
-            {" · "}opening balances: {r.counts.openingBalances}
+            {" · "}
+            {t("openingBalances")}: {r.counts.openingBalances}
           </p>
           {byCode.length > 0 && (
             <div>

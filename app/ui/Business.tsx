@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useApp, newCommandId } from "@/lib/ui/state";
 import { useSheet } from "@/lib/ui/sheets";
-import { AmountInput, Empty, Field, Money, PartyPicker, Seg, go, useAmount } from "@/lib/ui/components";
+import { AmountInput, Empty, useAsk, Field, Money, PartyPicker, Seg, go, useAmount } from "@/lib/ui/components";
 import { errorMessage } from "@/lib/ui/i18n";
 import { invoiceTotals, lineTotals, parseQuantity } from "@/lib/core/invoice";
 import { parseAmount } from "@/lib/core/money";
@@ -16,8 +16,51 @@ import type { Direction, InvoiceLine } from "@/lib/core/types";
 
 type LineDraft = { description: string; qty: string; price: string; discount: string; taxBps: number };
 
+/**
+ * Lets the invoice and recurring forms accept a new name the way the debt form does: the person is
+ * created when the form is saved, with the same "similar person exists" choice. Retrying after a
+ * later failure reuses the same command id, so the person is never created twice.
+ */
+function useNewParty(setPartyId: (id: string | null) => void) {
+  const { ws, run, idx, t } = useApp();
+  const [allowDup, setAllowDup] = useState(false);
+  const [dupIds, setDupIds] = useState<string[]>([]);
+  const [cmd, setCmd] = useState(() => newCommandId());
+  const ensure = async (partyId: string | null, name: string): Promise<string> => {
+    if (partyId) return partyId;
+    if (!name.trim()) throw Object.assign(new Error("name_required"), { code: "name_required" });
+    try {
+      const pid = (await run<{ partyId: string }>("createParty", { workspaceId: ws!.id, displayName: name.trim(), allowDuplicate: allowDup }, allowDup ? cmd + "-dup" : cmd)).partyId;
+      // The new person is now selected, so a retry never reaches here; the next new name needs a new id.
+      setPartyId(pid);
+      setCmd(newCommandId());
+      setAllowDup(false);
+      return pid;
+    } catch (e) {
+      if ((e as { code?: string }).code === "possible_duplicate") setDupIds((e as { details?: { ids?: string[] } }).details?.ids ?? []);
+      throw e;
+    }
+  };
+  const banner =
+    dupIds.length > 0 ? (
+      <div className="banner banner-warn grid gap-2">
+        <p>{t("duplicateFound")}</p>
+        {dupIds.map((id) => (
+          <button key={id} type="button" className="btn btn-sm justify-start" onClick={() => { setPartyId(id); setDupIds([]); }}>
+            {t("useExisting")}: {idx?.party.get(id)?.displayName}
+          </button>
+        ))}
+        <button type="button" className="btn btn-sm" onClick={() => { setAllowDup(true); setDupIds([]); }}>
+          {t("createAnyway")}
+        </button>
+      </div>
+    ) : null;
+  return { ensure, banner };
+}
+
 export function Invoices({ sub }: { sub?: string }) {
   const { t, data, ws, idx, lang, run, toast } = useApp();
+  const ask = useAsk();
   const list = data.invoices.filter((i) => i.workspaceId === ws?.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   if (sub === "new" || (sub && data.invoices.some((i) => i.id === sub && i.state === "draft"))) return <InvoiceForm invoiceId={sub === "new" ? undefined : sub} />;
   const act = async (type: string, payload: Record<string, unknown>) => {
@@ -71,8 +114,8 @@ export function Invoices({ sub }: { sub?: string }) {
                 {inv.state === "posted" && (
                   <button
                     className="btn btn-sm btn-danger"
-                    onClick={() => {
-                      const reason = window.prompt(t("reason"));
+                    onClick={async () => {
+                      const reason = await ask({ title: t("voidDebt"), reason: true, confirmLabel: t("voidDebt"), danger: true });
                       if (reason) void act("voidInvoice", { invoiceId: inv.id, reason });
                     }}
                   >
@@ -119,10 +162,13 @@ function InvoiceForm({ invoiceId }: { invoiceId?: string }) {
     totals = null;
   }
   const upd = (i: number, p: Partial<LineDraft>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...p } : l)));
+  const newParty = useNewParty(setPartyId);
+  const hasParty = !!partyId || !!name.trim();
   const save = async (post: boolean) => {
     setError(null);
     try {
-      const r = await run<{ invoiceId: string }>("saveInvoiceDraft", { workspaceId: ws!.id, invoiceId: existing?.id, partyId, date, dueDate: dueDate || null, currency, lines: built, notes }, cmd);
+      const pid = await newParty.ensure(partyId, name);
+      const r = await run<{ invoiceId: string }>("saveInvoiceDraft", { workspaceId: ws!.id, invoiceId: existing?.id, partyId: pid, date, dueDate: dueDate || null, currency, lines: built, notes }, cmd);
       if (post) await run("postInvoice", { invoiceId: r.invoiceId });
       toast(t("saved"));
       go("/more/invoices");
@@ -137,6 +183,7 @@ function InvoiceForm({ invoiceId }: { invoiceId?: string }) {
         <Field label={t("person")}>
           <PartyPicker partyId={partyId} name={name} onPick={setPartyId} onName={setName} />
         </Field>
+        {newParty.banner}
         <div className="grid grid-cols-2 gap-2">
           <Field label={t("date")}>
             <input type="date" className="input" value={date} max={today} onChange={(e) => setDate(e.target.value)} />
@@ -207,10 +254,10 @@ function InvoiceForm({ invoiceId }: { invoiceId?: string }) {
         <p className="help">{t("invoiceNote")}</p>
         {error && <p className="banner banner-late">{error}</p>}
         <div className="flex gap-2">
-          <button className="btn flex-1" disabled={!partyId || !totals} onClick={() => save(false)}>
+          <button className="btn flex-1" disabled={!hasParty || !totals} onClick={() => save(false)}>
             {t("saveDraft")}
           </button>
-          <button className="btn btn-primary flex-1" disabled={!partyId || !totals} onClick={() => save(true)}>
+          <button className="btn btn-primary flex-1" disabled={!hasParty || !totals} onClick={() => save(true)}>
             {t("postInvoice")}
           </button>
         </div>
@@ -233,6 +280,7 @@ export function Recurring() {
   const [endDate, setEndDate] = useState("");
   const [cmd, setCmd] = useState(() => newCommandId());
   const plans = data.recurringPlans.filter((p) => p.workspaceId === ws?.id);
+  const newParty = useNewParty(setPartyId);
   const act = async (type: string, payload: Record<string, unknown>) => {
     try {
       await run(type, payload);
@@ -291,7 +339,8 @@ export function Recurring() {
         onSubmit={async (e) => {
           e.preventDefault();
           try {
-            await run("createRecurringPlan", { workspaceId: ws!.id, partyId, direction, currency: ws!.defaultCurrency, amount: parsed.ok ? parsed.minor : 0, description, frequency, startDate, endDate: endDate || null }, cmd);
+            const pid = await newParty.ensure(partyId, name);
+            await run("createRecurringPlan", { workspaceId: ws!.id, partyId: pid, direction, currency: ws!.defaultCurrency, amount: parsed.ok ? parsed.minor : 0, description, frequency, startDate, endDate: endDate || null }, cmd);
             await run("generateRecurring", { workspaceId: ws!.id });
             setCmd(newCommandId());
             setDescription("");
@@ -305,6 +354,7 @@ export function Recurring() {
         <h2 className="section-title">{t("add")}</h2>
         <Seg value={direction} onChange={setDirection} options={[{ value: "receivable", label: t("owedToMe") }, { value: "payable", label: t("iOwe") }]} />
         <PartyPicker partyId={partyId} name={name} onPick={setPartyId} onName={setName} />
+        {newParty.banner}
         <Field label={t("description")}>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
@@ -325,7 +375,7 @@ export function Recurring() {
             <input type="date" className="input" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
           </Field>
         </div>
-        <button className="btn btn-primary" disabled={!partyId || !ready || !description.trim()}>
+        <button className="btn btn-primary" disabled={(!partyId && !name.trim()) || !ready || !description.trim()}>
           {t("save")}
         </button>
       </form>

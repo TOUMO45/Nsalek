@@ -6,9 +6,9 @@ import type { SheetSpec } from "@/lib/ui/sheets";
 import { AmountInput, CurrencySelect, DirectionPicker, Field, Money, PartyPicker, Seg, Sheet, go, readFileAttachment, useAmount } from "@/lib/ui/components";
 import { errorMessage } from "@/lib/ui/i18n";
 import { addDays, formatDate } from "@/lib/core/dates";
-import { figuresOf, openObligations, partyBalance, paymentFiguresOf, planAllocation } from "@/lib/core/ledger";
+import { advancePayments, figuresOf, openObligations, partyBalance, paymentFiguresOf, planAllocation } from "@/lib/core/ledger";
 import { buildSchedule } from "@/lib/core/installments";
-import { parseAmount, toInputValue } from "@/lib/core/money";
+import { formatMoney, parseAmount, toInputValue } from "@/lib/core/money";
 import { reminderMessage, shareUrl } from "@/lib/core/messages";
 import { whatsappDigits } from "@/lib/core/text";
 import type { Direction, PaymentMethod } from "@/lib/core/types";
@@ -117,9 +117,13 @@ function DebtSheet({ spec, onClose }: { spec: Extract<SheetSpec, { kind: "debt" 
   const [file, setFile] = useState<File | null>(null);
   const [override, setOverride] = useState("");
   const [allowDup, setAllowDup] = useState(false);
-  const ids = useMemo(() => ({ party: newCommandId(), ob: newCommandId(), att: newCommandId() }), []);
+  const [useAdvance, setUseAdvance] = useState(false);
+  const ids = useMemo(() => ({ party: newCommandId(), ob: newCommandId(), att: newCommandId(), adv: newCommandId() }), []);
   const s = useSubmit();
   const dupIds = (s.code === "possible_duplicate" ? (s.details?.ids as string[]) : null) ?? [];
+  // An advance this person already paid (or we paid them) can settle the new debt right away, if chosen.
+  const advances = partyId && idx ? advancePayments(idx, partyId, direction, currency) : [];
+  const advanceTotal = advances.reduce((n, a) => n + a.unallocated, 0);
   const showErrors = !!s.error;
   const schedule = useMemo(() => {
     if (!inst.on || !parsed.ok) return null;
@@ -160,6 +164,15 @@ function DebtSheet({ spec, onClose }: { spec: Extract<SheetSpec, { kind: "debt" 
         },
         ids.ob,
       );
+      if (useAdvance && !draft && advanceTotal > 0) {
+        let rest = parsed.minor;
+        for (const [i, a] of advances.entries()) {
+          if (rest <= 0) break;
+          const amount = Math.min(rest, a.unallocated);
+          await run("applyAdvance", { paymentId: a.payment.id, allocations: [{ obligationId: r.obligationId, amount }] }, `${ids.adv}-${i}`);
+          rest -= amount;
+        }
+      }
       if (file) await run("addAttachment", { workspaceId: ws!.id, ownerType: "obligation", ownerId: r.obligationId, ...(await readFileAttachment(file)) }, ids.att);
       if (spec.noteId) await run("updateNote", { noteId: spec.noteId, convertedTo: { type: "obligation", id: r.obligationId } });
       toast(t("saved"));
@@ -190,6 +203,12 @@ function DebtSheet({ spec, onClose }: { spec: Extract<SheetSpec, { kind: "debt" 
         <Field label={t("amount")} htmlFor="debt-amount">
           <AmountInput id="debt-amount" currency={currency} state={amount} onChange={setAmount} parsed={parsed} showErrors={showErrors} autoFocus={!!spec.partyId} />
         </Field>
+        {advanceTotal > 0 && !draft && (
+          <label className="banner flex items-center gap-2">
+            <input type="checkbox" className="h-5 w-5" checked={useAdvance} onChange={(e) => setUseAdvance(e.target.checked)} />
+            <span>{t("useAdvanceFor").replace("{a}", formatMoney(advanceTotal, currency, lang))}</span>
+          </label>
+        )}
         <button type="button" className="btn btn-ghost btn-sm w-full" onClick={() => setMore((m) => !m)} aria-expanded={more}>
           {more ? <ChevronUp size={16} /> : <ChevronDown size={16} />} {more ? t("fewerOptions") : t("moreOptions")}
         </button>
@@ -1017,9 +1036,15 @@ function RemindSheet({ partyId, onClose }: { partyId: string; onClose: () => voi
 }
 
 function NettingSheet({ partyId, currency, onClose }: { partyId: string; currency: string; onClose: () => void }) {
-  const { idx, ws, t, run, toast, today, lang } = useApp();
-  const b = partyBalance(idx!, partyId, today).get(currency);
-  const max = Math.min(b?.receivable ?? 0, b?.payable ?? 0);
+  const { idx, ws, t, run, toast, lang } = useApp();
+  // Disputed debts are never offset (same rule as the netBalances command), so they are left out here.
+  const side = (direction: Direction) => {
+    const open = openObligations(idx!, partyId, direction, currency);
+    return { total: open.filter((x) => !x.obligation.disputed).reduce((n, x) => n + x.outstanding, 0), disputed: open.some((x) => x.obligation.disputed) };
+  };
+  const rec = side("receivable");
+  const pay = side("payable");
+  const max = Math.min(rec.total, pay.total);
   const [amount, setAmount, parsed, ready] = useAmount(currency, toInputValue(max, currency, lang));
   const [reason, setReason] = useState("");
   const cmd = useMemo(() => newCommandId(), []);
@@ -1040,12 +1065,13 @@ function NettingSheet({ partyId, currency, onClose }: { partyId: string; currenc
         <p className="help">{t("nettingHelp")}</p>
         <div className="grid grid-cols-2 gap-2 text-[14px]">
           <p className="owed font-bold">
-            <Money minor={b?.receivable ?? 0} currency={currency} />
+            <Money minor={rec.total} currency={currency} />
           </p>
           <p className="owe font-bold">
-            <Money minor={b?.payable ?? 0} currency={currency} />
+            <Money minor={pay.total} currency={currency} />
           </p>
         </div>
+        {(rec.disputed || pay.disputed) && <p className="banner banner-warn">{t("nettingSkipsDisputed")}</p>}
         <Field label={t("amount")}>
           <AmountInput currency={currency} state={amount} onChange={setAmount} parsed={parsed} />
         </Field>

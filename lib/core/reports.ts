@@ -62,7 +62,10 @@ export function periodReport(idx: LedgerIndex, from: ISODate, to: ISODate): Map<
       if (adj.type === "waiver" || adj.type === "write_off") {
         if (ob.direction === "receivable") r.waivedReceivable += adj.amount;
         else r.waivedPayable += adj.amount;
-      } else if (adj.type === "netting") r.netted += adj.amount;
+      } else if (adj.type === "netting") {
+        // One offset reduces both sides by the same amount; count it once (the receivable side).
+        if (ob.direction === "receivable") r.netted += adj.amount;
+      }
       else if (adj.type === "increase") r.increases += adj.amount;
       else r.decreases += adj.amount;
     }

@@ -348,6 +348,9 @@ export type MetaRecord = {
   lastBackupAt?: ISOTime | null;
   lastBackupError?: string | null;
   pin?: { salt: string; hash: string; iterations: number } | null;
+  /** Consecutive wrong PINs and when the last one happened (see core/pin.ts). */
+  pinFailures?: number;
+  pinLastFailAt?: ISOTime | null;
   persistentStorage?: "granted" | "denied" | "unsupported" | null;
   lastNotifiedOn?: ISODate | null;
 };

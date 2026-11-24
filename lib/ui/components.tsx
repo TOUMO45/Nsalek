@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ArrowDownLeft, ArrowUpRight, Search, X } from "lucide-react";
 import { formatMoney, parseAmount, CURRENCIES, type AmountParse } from "../core/money.ts";
 import { searchParties, type ObligationStatus } from "../core/ledger.ts";
@@ -113,6 +113,66 @@ export function Sheet({ title, onClose, children, wide = false }: { title: strin
         {children}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- in-app confirmation dialog
+
+/** A confirmation inside the app (instead of the browser's confirm/prompt), optionally asking for a reason. */
+export type AskOptions = { title: string; message?: string; reason?: boolean; confirmLabel: string; danger?: boolean };
+type AskRequest = AskOptions & { resolve: (answer: string | null) => void };
+const AskContext = createContext<(o: AskOptions) => Promise<string | null>>(async () => null);
+
+/** Resolves to the typed reason (or "ok" when no reason is asked), or null when dismissed. */
+export const useAsk = () => useContext(AskContext);
+
+export function AskProvider({ children }: { children: ReactNode }) {
+  const [req, setReq] = useState<AskRequest | null>(null);
+  const ask = useCallback((o: AskOptions) => new Promise<string | null>((resolve) => setReq({ ...o, resolve })), []);
+  const done = useCallback(
+    (answer: string | null) => {
+      req?.resolve(answer);
+      setReq(null);
+    },
+    [req],
+  );
+  return (
+    <AskContext.Provider value={ask}>
+      {children}
+      {req && <AskDialog req={req} onDone={done} />}
+    </AskContext.Provider>
+  );
+}
+
+function AskDialog({ req, onDone }: { req: AskRequest; onDone: (answer: string | null) => void }) {
+  const { t } = useApp();
+  const [reason, setReason] = useState("");
+  const dismiss = useCallback(() => onDone(null), [onDone]);
+  return (
+    <Sheet title={req.title} onClose={dismiss}>
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onDone(req.reason ? reason.trim() : "ok");
+        }}
+      >
+        {req.message && <p>{req.message}</p>}
+        {req.reason && (
+          <Field label={t("reason")} help={t("reasonRequired")} htmlFor="ask-reason">
+            <input id="ask-reason" className="input" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+        )}
+        <div className="flex gap-2">
+          <button type="button" className="btn flex-1" onClick={dismiss}>
+            {t("close")}
+          </button>
+          <button className={`btn flex-1 ${req.danger ? "btn-danger" : "btn-primary"}`} disabled={!!req.reason && !reason.trim()}>
+            {req.confirmLabel}
+          </button>
+        </div>
+      </form>
+    </Sheet>
   );
 }
 

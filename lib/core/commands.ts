@@ -674,8 +674,9 @@ handlers.netBalances = async (ctx, p) => {
   check(date <= today, "future_date");
   const reason = required(p.reason, 300, "reason_required");
   const l = await partyLedger(ctx, pt.id);
-  const rec = openOf(l, "receivable", currency);
-  const pay = openOf(l, "payable", currency);
+  // A disputed debt is never offset: the client contests it, so it cannot settle what we owe them.
+  const rec = openOf(l, "receivable", currency).filter((x) => !x.obligation.disputed);
+  const pay = openOf(l, "payable", currency).filter((x) => !x.obligation.disputed);
   const maxNet = Math.min(rec.reduce((n, x) => n + x.outstanding, 0), pay.reduce((n, x) => n + x.outstanding, 0));
   check(amount <= maxNet, "netting_exceeds", { max: maxNet });
   const nettingId = `net_${ctx.commandId}`;

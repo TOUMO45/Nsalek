@@ -1,8 +1,12 @@
 // Offline app shell. Caches same-origin GET requests (static export). Financial data never
-// passes through here: it lives in IndexedDB. Bump VERSION to drop old caches.
-const VERSION = "nsalek-v1";
+// passes through here: it lives in IndexedDB.
+// `npm run build` rewrites the next two lines (scripts/sw-precache.mjs): PRECACHE becomes every
+// file of the app shell, so the app opens offline from the first visit, and VERSION becomes a hash
+// of those files, so each build drops the previous cache.
+const VERSION = "nsalek-dev";
+const PRECACHE = ["/", "/manifest.webmanifest", "/icon.svg"];
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(["/", "/manifest.webmanifest", "/icon.svg"])).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

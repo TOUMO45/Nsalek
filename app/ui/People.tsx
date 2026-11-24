@@ -1,11 +1,12 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, BellRing, FileText, HandCoins, MessageCircle, MoreHorizontal, Phone, Plus, Search, UserPlus, Users } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
 import { useSheet } from "@/lib/ui/sheets";
-import { Avatar, DirectionIcon, Empty, Money, Seg, StatusChip, displayPhone, go, readFileAttachment } from "@/lib/ui/components";
+import { Avatar, DirectionIcon, useAsk, Empty, Money, Seg, StatusChip, displayPhone, go, readFileAttachment } from "@/lib/ui/components";
 import {
   activeAdjustments,
+  advancePayments,
   daysPastDue,
   figuresOf,
   netPosition,
@@ -17,10 +18,11 @@ import {
   type PartyFilters,
 } from "@/lib/core/ledger";
 import { lastPayment, promiseState } from "@/lib/core/collections";
+import { formatMoney } from "@/lib/core/money";
 import { installmentProgress } from "@/lib/core/installments";
 import { formatDate } from "@/lib/core/dates";
 import { whatsappDigits } from "@/lib/core/text";
-import { errorMessage } from "@/lib/ui/i18n";
+import { channelLabel, errorMessage } from "@/lib/ui/i18n";
 import type { Obligation } from "@/lib/core/types";
 
 type FilterKey = "all" | "receivable" | "payable" | "overdue" | "settled" | "archived";
@@ -259,8 +261,15 @@ export function PersonPage({ partyId }: { partyId: string }) {
                     <Money minor={b.receivable} currency={c} />
                   </p>
                   {b.advanceReceived > 0 && (
-                    <p className="help">
-                      {t("advance")}: <Money minor={b.advanceReceived} currency={c} />
+                    <p className="help flex flex-wrap items-center gap-1.5">
+                      <span>
+                        {t("advance")}: <Money minor={b.advanceReceived} currency={c} />
+                      </span>
+                      {b.receivable > 0 && (
+                        <button className="btn btn-sm" onClick={() => open({ kind: "applyAdvance", paymentId: advancePayments(idx!, party.id, "receivable", c)[0].payment.id })}>
+                          {t("applyAdvance")}
+                        </button>
+                      )}
                     </p>
                   )}
                 </div>
@@ -270,8 +279,15 @@ export function PersonPage({ partyId }: { partyId: string }) {
                     <Money minor={b.payable} currency={c} />
                   </p>
                   {b.advancePaid > 0 && (
-                    <p className="help">
-                      {t("advance")}: <Money minor={b.advancePaid} currency={c} />
+                    <p className="help flex flex-wrap items-center gap-1.5">
+                      <span>
+                        {t("advance")}: <Money minor={b.advancePaid} currency={c} />
+                      </span>
+                      {b.payable > 0 && (
+                        <button className="btn btn-sm" onClick={() => open({ kind: "applyAdvance", paymentId: advancePayments(idx!, party.id, "payable", c)[0].payment.id })}>
+                          {t("applyAdvance")}
+                        </button>
+                      )}
                     </p>
                   )}
                 </div>
@@ -341,6 +357,8 @@ export function PersonPage({ partyId }: { partyId: string }) {
 function PartyMenu({ partyId }: { partyId: string }) {
   const { t, run, idx, toast, lang } = useApp();
   const open = useSheet();
+  const ask = useAsk();
+  const menu = useRef<HTMLDetailsElement>(null);
   const party = idx?.party.get(partyId);
   if (!party) return null;
   const archive = async () => {
@@ -348,7 +366,7 @@ function PartyMenu({ partyId }: { partyId: string }) {
       if (party.archivedAt) await run("archiveParty", { partyId, archived: false });
       else {
         const hasBalance = [...partyBalance(idx!, partyId, "9999-12-31").values()].some((b) => b.receivable || b.payable);
-        if (hasBalance && !window.confirm(t("archiveHasBalance"))) return;
+        if (hasBalance && !(await ask({ title: t("archivePerson"), message: t("archiveHasBalance"), confirmLabel: t("archivePerson") }))) return;
         await run("archiveParty", { partyId, archived: true, confirmOutstanding: true });
       }
       toast(t("saved"));
@@ -357,11 +375,12 @@ function PartyMenu({ partyId }: { partyId: string }) {
     }
   };
   return (
-    <details className="relative">
+    <details className="relative" ref={menu}>
       <summary className="icon-btn list-none" aria-label={t("more")}>
         <MoreHorizontal size={20} />
       </summary>
-      <div className="card absolute z-10 mt-1 grid min-w-[220px] p-1" style={{ insetInlineEnd: 0, boxShadow: "var(--shadow)" }}>
+      {/* Choosing any action closes the menu, so it does not stay open behind the form. */}
+      <div className="card absolute z-10 mt-1 grid min-w-[220px] p-1" style={{ insetInlineEnd: 0, boxShadow: "var(--shadow)" }} onClick={() => menu.current?.removeAttribute("open")}>
         <button className="btn btn-ghost justify-start" onClick={() => open({ kind: "party", partyId })}>
           {t("editPerson")}
         </button>
@@ -382,9 +401,12 @@ function PartyMenu({ partyId }: { partyId: string }) {
 type TlFilter = "all" | "debts" | "payments" | "corrections" | "follow";
 
 function Timeline({ partyId }: { partyId: string }) {
-  const { idx, t, lang, today } = useApp();
+  const { idx, t, lang, today, prefs } = useApp();
   const [filter, setFilter] = useState<TlFilter>("all");
   const rows = useMemo(() => {
+    // A repayment that left an advance moves the balance by the allocated part only; say the full amount too.
+    const fullAmount = (pay: { amount: number; currency: string }, delta: number) =>
+      pay.amount !== Math.abs(delta) ? ` · ${t("fullAmount")} ${formatMoney(pay.amount, pay.currency, lang, { hide: prefs.hideAmounts })}` : "";
     if (!idx) return [];
     const balances = new Map<string, number>();
     type Row = { key: string; date: string; at: string; group: TlFilter; label: string; detail?: string; delta?: number; currency?: string; direction?: "receivable" | "payable"; balance?: number; struck?: boolean };
@@ -401,7 +423,7 @@ function Timeline({ partyId }: { partyId: string }) {
         at: e.at,
         group,
         label: t(`ek_${e.kind}` as never),
-        detail: ob?.description || ob?.reference || (pay ? t(`m_${pay.method}` as never) + (pay.reference ? ` · ${pay.reference}` : "") : undefined),
+        detail: ob?.description || ob?.reference || (pay ? t(`m_${pay.method}` as never) + (pay.reference ? ` · ${pay.reference}` : "") + (e.kind === "payment" ? fullAmount(pay, e.delta) : "") : undefined),
         delta: e.delta,
         currency: e.currency,
         direction: e.direction,
@@ -415,9 +437,9 @@ function Timeline({ partyId }: { partyId: string }) {
     for (const a of idx.adjByParty.get(partyId) ?? [])
       if (a.reversedAt) out.push({ key: "ra" + a.id, date: a.reversedAt.slice(0, 10), at: a.reversedAt, group: "corrections", label: `${t("reversed")}: ${t(`ek_${a.type}` as never)}`, detail: a.reversalReason ?? "", struck: true });
     for (const pr of idx.promisesByParty.get(partyId) ?? []) out.push({ key: "pr" + pr.id, date: pr.madeOn, at: pr.createdAt, group: "follow", label: `${t("promise")} → ${formatDate(pr.promisedDate, lang)}`, detail: t(`p_${promiseState(pr, idx, today).state}` as never), currency: pr.currency });
-    for (const r of idx.remindersByParty.get(partyId) ?? []) out.push({ key: "rm" + r.id, date: r.createdAt.slice(0, 10), at: r.createdAt, group: "follow", label: `${t("remind")} · ${r.channel}`, detail: t(`rs_${r.status}` as never) });
+    for (const r of idx.remindersByParty.get(partyId) ?? []) out.push({ key: "rm" + r.id, date: r.createdAt.slice(0, 10), at: r.createdAt, group: "follow", label: `${t("remind")} · ${channelLabel(lang, r.channel)}`, detail: t(`rs_${r.status}` as never) });
     return out.sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
-  }, [idx, partyId, t, lang, today]);
+  }, [idx, partyId, t, lang, today, prefs.hideAmounts]);
   const shown = rows.filter((r) => filter === "all" || r.group === filter);
   return (
     <section className="card overflow-hidden">
@@ -728,7 +750,7 @@ function FollowTab({ partyId }: { partyId: string }) {
           <div key={r.id} className="row items-start">
             <div className="min-w-0 flex-1">
               <p className="font-semibold">
-                {r.channel} · <bdi className="num">{formatDate(r.createdAt.slice(0, 10), lang)}</bdi>
+                {channelLabel(lang, r.channel)} · <bdi className="num">{formatDate(r.createdAt.slice(0, 10), lang)}</bdi>
               </p>
               <p className="help line-clamp-2 whitespace-pre-wrap" dir={r.language === "ar" ? "rtl" : "ltr"}>
                 {r.message}

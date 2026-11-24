@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, NotebookPen, ShieldAlert } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
+import { peopleCount } from "@/lib/ui/i18n";
 import { useSheet } from "@/lib/ui/sheets";
 import { Avatar, DirectionIcon, Empty, Money } from "@/lib/ui/components";
 import { workspaceTotals, figuresOf } from "@/lib/core/ledger";
@@ -64,7 +65,7 @@ export function Home() {
                 <Money minor={b?.receivable ?? 0} currency={currency} />
               </p>
               <p className="help">
-                <bdi className="num">{b?.debtors ?? 0}</bdi> {t("people_n")}
+                <bdi>{peopleCount(lang, b?.debtors ?? 0)}</bdi>
                 {b && b.advanceReceived > 0 && (
                   <>
                     {" · "}
@@ -78,7 +79,7 @@ export function Home() {
                 <Money minor={b?.payable ?? 0} currency={currency} />
               </p>
               <p className="help">
-                <bdi className="num">{b?.creditors ?? 0}</bdi> {t("people_n")}
+                <bdi>{peopleCount(lang, b?.creditors ?? 0)}</bdi>
               </p>
             </div>
           </div>

@@ -148,6 +148,7 @@ const S = {
   st_closed: ["مغلق", "Clôturée", "Closed"],
   st_voided: ["ملغى", "Annulée", "Voided"],
   st_draft: ["مسودة", "Brouillon", "Draft"],
+  st_posted: ["صادرة", "Émise", "Issued"],
   disputed: ["متنازَع عليه", "Contestée", "Disputed"],
   reversed: ["معكوس", "Annulé", "Reversed"],
   overdueDays: ["يوم تأخير", "j de retard", "days late"],
@@ -269,6 +270,8 @@ const S = {
   removePin: ["إزالة الرمز", "Retirer le code", "Remove PIN"],
   enterPin: ["أدخل الرمز", "Saisissez le code", "Enter PIN"],
   wrongPin: ["رمز خاطئ", "Code incorrect", "Wrong PIN"],
+  pinWait: ["محاولات خاطئة كثيرة. أعد المحاولة بعد {s} ثانية.", "Trop d’essais incorrects. Réessayez dans {s} s.", "Too many wrong tries. Try again in {s} s."],
+  hideAmountsHelp: ["يعوّض كل مبلغ بـ ••••• على الشاشة، مثلاً عندما ينظر شخص آخر. البيانات لا تتغير.", "Remplace chaque montant par ••••• à l’écran, par exemple quand quelqu’un regarde. Les données ne changent pas.", "Replaces every amount with ••••• on screen, for example when someone is looking. Your data does not change."],
   unlock: ["فتح", "Déverrouiller", "Unlock"],
   lock: ["قفل", "Verrouiller", "Lock"],
   agingBounds: ["حدود أعمار الديون (أيام)", "Tranches d’ancienneté (jours)", "Aging bucket bounds (days)"],
@@ -398,6 +401,22 @@ const S = {
   reconciliation: ["المطابقة", "Rapprochement", "Reconciliation"],
   reviewItems: ["عناصر للمراجعة", "Points à vérifier", "Items to review"],
   notAvailable: ["هذه الميزة غير متاحة في هذه النسخة.", "Fonction indisponible dans cette version.", "Not available in this version."],
+  // CSV import screen
+  fullAmount: ["المبلغ الكامل", "montant total", "full amount"],
+  nettingSkipsDisputed: ["الديون المتنازع عليها لا تدخل في المقاصة.", "Les dettes contestées ne sont pas compensées.", "Disputed debts are not netted."],
+  useAdvanceFor: ["استعمال التسبيق المتاح ({a}) لهذا الدين", "Utiliser l’avance disponible ({a}) pour cette dette", "Use the available advance ({a}) for this debt"],
+  restoreReplaceWarn: ["ستُستبدل كل البيانات الحالية بمحتوى النسخة الاحتياطية. تُحفظ لقطة قبل ذلك.", "Toutes les données actuelles seront remplacées par la sauvegarde. Un instantané est gardé avant.", "All current data will be replaced by the backup. A snapshot is kept first."],
+  csvDelimiter: ["الفاصل", "Séparateur", "Delimiter"],
+  csvDirection: ["الاتجاه", "Sens", "Direction"],
+  csvTypeHint: ["دين / تسديد", "dette / paiement", "debt / payment"],
+  csvDirectionHint: ["ليك / عليك", "on me doit / je dois", "owed to me / I owe"],
+  imp_ok: ["صالح", "Valide", "Valid"],
+  imp_error: ["خطأ", "Erreur", "Error"],
+  imp_duplicate: ["مكرر", "Doublon", "Duplicate"],
+  impParty_new: ["شخص جديد", "nouvelle personne", "new person"],
+  impParty_matched_phone: ["حسب الهاتف", "trouvée par téléphone", "matched by phone"],
+  impParty_matched_name: ["حسب الاسم", "trouvée par nom", "matched by name"],
+  openingBalances: ["أرصدة افتتاحية", "Soldes d’ouverture", "Opening balances"],
 };
 
 export type Key = keyof typeof S;
@@ -467,4 +486,135 @@ export function errorMessage(lang: Lang, e: unknown): string {
 
 export function amountError(lang: Lang, code: string): string {
   return AMOUNT_E[code]?.[IDX[lang]] ?? code;
+}
+
+type Tr = [string, string, string];
+const pick = (lang: Lang, entry: Tr) => entry[IDX[lang]];
+
+/** "1 personne", "2 personnes"; Arabic uses singular, dual, plural (3–10) and accusative (11+). */
+export function peopleCount(lang: Lang, n: number): string {
+  if (lang === "fr") return `${n} ${n <= 1 ? "personne" : "personnes"}`;
+  if (lang === "en") return `${n} ${n === 1 ? "person" : "people"}`;
+  if (n === 1) return "شخص واحد";
+  if (n === 2) return "شخصان";
+  const h = n % 100;
+  return h >= 3 && h <= 10 ? `${n} أشخاص` : `${n} شخصاً`;
+}
+
+// Row errors produced by the CSV import (lib/core/csvImport.ts).
+const IMPORT_E: Record<string, Tr> = {
+  type_required: ["نوع السطر مطلوب (دين أو تسديد).", "Type de ligne manquant (dette ou paiement).", "Row type missing (debt or payment)."],
+  invalid_type: ["نوع السطر غير معروف (دين أو تسديد).", "Type de ligne inconnu (dette ou paiement).", "Unknown row type (debt or payment)."],
+  name_too_long: ["الاسم طويل جداً.", "Nom trop long.", "Name too long."],
+  invalid_phone: ["رقم هاتف غير صالح.", "Numéro de téléphone invalide.", "Invalid phone number."],
+  direction_required: ["الاتجاه مطلوب (ليك أو عليك).", "Sens manquant (on me doit ou je dois).", "Direction missing (owed to me or I owe)."],
+  invalid_direction: ["اتجاه غير معروف (ليك أو عليك).", "Sens inconnu (on me doit ou je dois).", "Unknown direction (owed to me or I owe)."],
+  amount_required: ["المبلغ مطلوب.", "Montant manquant.", "Amount missing."],
+  centime_requires_dzd: ["السنتيم متاح للدينار فقط.", "Les centimes ne s’appliquent qu’au dinar.", "Centimes apply to dinars only."],
+  amount_expression: ["اكتب المبلغ النهائي بدون عمليات حسابية.", "Écrivez le montant final, sans calcul.", "Write the final amount, without a calculation."],
+  date_required: ["التاريخ مطلوب.", "Date manquante.", "Date missing."],
+  invalid_date: ["تاريخ غير صالح.", "Date invalide.", "Invalid date."],
+  invalid_due_date: ["تاريخ استحقاق غير صالح.", "Échéance invalide.", "Invalid due date."],
+  description_too_long: ["الوصف طويل جداً.", "Description trop longue.", "Description too long."],
+  reference_too_long: ["المرجع طويل جداً.", "Référence trop longue.", "Reference too long."],
+  ambiguous_party: ["عدة أشخاص يطابقون هذا السطر. حدّد الهاتف.", "Plusieurs personnes correspondent. Précisez le téléphone.", "Several people match this row. Add the phone number."],
+};
+
+/** Readable message for a CSV import row error code; never shows the raw code. */
+export function importErrorMessage(lang: Lang, code: string): string {
+  if (IMPORT_E[code]) return pick(lang, IMPORT_E[code]);
+  if (E[code]) return pick(lang, E[code]);
+  const amount = code.startsWith("amount_") ? AMOUNT_E[code.slice(7)] : undefined;
+  if (amount) return pick(lang, amount);
+  return pick(lang, ["قيمة غير صالحة في هذا السطر.", "Valeur invalide dans cette ligne.", "Invalid value in this row."]);
+}
+
+const AUDIT: Record<string, Tr> = {
+  "workspace.create": ["إنشاء دفتر", "Création du carnet", "Notebook created"],
+  "workspace.update": ["تعديل إعدادات الدفتر", "Réglages du carnet modifiés", "Notebook settings changed"],
+  "workspace.archive": ["أرشفة دفتر", "Carnet archivé", "Notebook archived"],
+  "party.create": ["إضافة شخص", "Personne ajoutée", "Person added"],
+  "party.update": ["تعديل شخص", "Personne modifiée", "Person edited"],
+  "party.archive": ["أرشفة شخص", "Personne archivée", "Person archived"],
+  "party.restore": ["استرجاع شخص", "Personne restaurée", "Person restored"],
+  "party.merge": ["دمج شخصين", "Fusion de deux personnes", "Two people merged"],
+  "party.snooze": ["إيقاف التذكيرات مؤقتاً", "Relances suspendues", "Reminders paused"],
+  "party.unsnooze": ["استئناف التذكيرات", "Relances reprises", "Reminders resumed"],
+  "obligation.post": ["تسجيل دين", "Dette enregistrée", "Debt recorded"],
+  "obligation.draft": ["حفظ دين كمسودة", "Dette en brouillon", "Debt saved as draft"],
+  "obligation.draft_update": ["تعديل مسودة دين", "Brouillon modifié", "Draft edited"],
+  "obligation.void": ["إلغاء دين", "Dette annulée", "Debt voided"],
+  "obligation.replace": ["استبدال دين بقيد مصحَّح", "Dette remplacée par une écriture corrigée", "Debt replaced by a corrected entry"],
+  "obligation.reschedule": ["تغيير تواريخ دين", "Dates d’une dette modifiées", "Debt dates changed"],
+  "obligation.dispute": ["دين متنازع عليه", "Dette contestée", "Debt disputed"],
+  "obligation.undispute": ["رفع النزاع عن دين", "Contestation retirée", "Dispute removed"],
+  "adjustment.reverse": ["إلغاء تعديل", "Ajustement annulé", "Adjustment reversed"],
+  "adjustment.increase": ["زيادة دين", "Augmentation d’une dette", "Debt increased"],
+  "adjustment.decrease": ["تخفيض دين (خطأ)", "Diminution d’une dette (erreur)", "Debt decreased (error)"],
+  "adjustment.waiver": ["تخفيض كتنازل", "Remise accordée", "Discount given"],
+  "adjustment.write_off": ["شطب دين كخسارة", "Passage en perte", "Written off"],
+  "recurring.pause": ["إيقاف دين متكرر مؤقتاً", "Dette récurrente suspendue", "Recurring debt paused"],
+  "recurring.resume": ["استئناف دين متكرر", "Dette récurrente reprise", "Recurring debt resumed"],
+  "recurring.end": ["إنهاء دين متكرر", "Dette récurrente terminée", "Recurring debt ended"],
+  "payment.post": ["تسجيل تسديد", "Remboursement enregistré", "Repayment recorded"],
+  "payment.reverse": ["إلغاء تسديد", "Remboursement annulé", "Repayment reversed"],
+  "payment.apply_advance": ["تخصيص تسبيق", "Avance affectée", "Advance applied"],
+  "netting.create": ["مقاصة صريحة", "Compensation explicite", "Explicit netting"],
+  "installments.create": ["إنشاء أقساط", "Échéancier créé", "Installment plan created"],
+  "installments.reschedule": ["إعادة جدولة الأقساط", "Échéancier replanifié", "Installments rescheduled"],
+  "installments.cancel": ["إلغاء الأقساط", "Échéancier annulé", "Installment plan cancelled"],
+  "promise.create": ["وعد بالدفع", "Promesse de paiement", "Promise to pay"],
+  "promise.cancel": ["إلغاء وعد", "Promesse annulée", "Promise cancelled"],
+  "recurring.create": ["إنشاء دين متكرر", "Dette récurrente créée", "Recurring debt created"],
+  "recurring.generate": ["توليد دين متكرر", "Dette récurrente générée", "Recurring debt generated"],
+  "invoice.draft": ["مسودة فاتورة", "Facture en brouillon", "Invoice drafted"],
+  "invoice.post": ["إصدار فاتورة", "Facture émise", "Invoice issued"],
+  "invoice.void": ["إلغاء فاتورة", "Facture annulée", "Invoice voided"],
+  "import.commit": ["استيراد ملف", "Import d’un fichier", "File imported"],
+  "import.reverse": ["إلغاء استيراد", "Import annulé", "Import undone"],
+  "attachment.add": ["إضافة مرفق", "Pièce jointe ajoutée", "Attachment added"],
+  "attachment.remove": ["حذف مرفق", "Pièce jointe retirée", "Attachment removed"],
+};
+
+/** Readable label for an audit action code such as "party.merge". */
+export function auditActionLabel(lang: Lang, action: string): string {
+  return AUDIT[action] ? pick(lang, AUDIT[action]) : pick(lang, ["عملية أخرى", "Autre opération", "Other change"]);
+}
+
+const STORES: Record<string, Tr> = {
+  workspaces: ["دفاتر", "Carnets", "Notebooks"],
+  parties: ["أشخاص", "Personnes", "People"],
+  obligations: ["ديون", "Dettes", "Debts"],
+  adjustments: ["تعديلات", "Ajustements", "Adjustments"],
+  payments: ["تسديدات", "Remboursements", "Repayments"],
+  allocations: ["تخصيصات", "Affectations", "Allocations"],
+  installmentPlans: ["جداول أقساط", "Échéanciers", "Installment plans"],
+  recurringPlans: ["ديون متكررة", "Dettes récurrentes", "Recurring debts"],
+  promises: ["وعود", "Promesses", "Promises"],
+  reminders: ["تذكيرات", "Relances", "Reminders"],
+  invoices: ["فواتير", "Factures", "Invoices"],
+  notes: ["ملاحظات", "Notes", "Notes"],
+  attachments: ["مرفقات", "Pièces jointes", "Attachments"],
+  audit: ["سجل التدقيق", "Journal d’audit", "Audit log"],
+  importBatches: ["عمليات استيراد", "Imports", "Imports"],
+};
+
+/** Readable name for a record type ("parties" → "Personnes"). */
+export const storeLabel = (lang: Lang, store: string): string => (STORES[store] ? pick(lang, STORES[store]) : store);
+
+const CHANNELS: Record<string, Tr> = {
+  whatsapp: ["واتساب", "WhatsApp", "WhatsApp"],
+  sms: ["رسالة SMS", "SMS", "SMS"],
+  email: ["بريد", "E-mail", "Email"],
+  copy: ["نسخ", "Copie", "Copy"],
+  local_notification: ["تنبيه على الجهاز", "Notification de l’appareil", "Device notification"],
+};
+
+export const channelLabel = (lang: Lang, channel: string): string => (CHANNELS[channel] ? pick(lang, CHANNELS[channel]) : channel);
+
+/** Label for a pre-restore snapshot, stored as "before merge" / "before replace". */
+export function snapshotLabel(lang: Lang, reason: string): string {
+  if (reason === "before merge") return pick(lang, ["قبل الدمج", "Avant fusion", "Before merge"]);
+  if (reason === "before replace") return pick(lang, ["قبل الاستبدال", "Avant remplacement", "Before replace"]);
+  return pick(lang, ["قبل الاسترجاع", "Avant restauration", "Before restore"]);
 }

@@ -80,7 +80,9 @@ export async function createBackup(
   const counts = Object.fromEntries(DATA_STORES.map((s) => [s, data[s].length])) as Record<DataStore, number>;
   const manifest: Manifest = {
     counts,
-    totals: computeTotals(data, now),
+    // Totals reveal the business position, so an encrypted backup keeps them only inside the
+    // ciphertext; AES-GCM and payloadSha256 already prove the payload is intact.
+    totals: opts.passphrase ? [] : computeTotals(data, now),
     payloadSha256: await sha256Hex(json),
     attachments: { included: data.attachments.length, bytes: data.attachments.reduce((n, a) => n + a.size, 0), omitted: [] },
   };
@@ -207,5 +209,6 @@ export function validateLedger(data: LedgerData): ValidationIssue[] {
 /** Recomputes totals and compares them to the manifest. */
 export function manifestMatches(file: BackupFile, data: LedgerData, at?: Date): boolean {
   const counts = DATA_STORES.every((s) => (file.manifest.counts[s] ?? 0) === data[s].length);
+  if (file.encryption) return counts; // totals are not stored in the clear for encrypted backups
   return counts && canonical(computeTotals(data, at ?? new Date(file.createdAt))) === canonical(file.manifest.totals);
 }

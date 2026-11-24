@@ -87,8 +87,9 @@ export function dueBetween(idx: LedgerIndex, from: ISODate, to: ISODate, directi
 export type PromiseState = "cancelled" | "kept" | "broken" | "due_today" | "pending";
 
 /**
- * A promise is "kept" when received payments dated from the day it was made up to the promised
- * date reach the promised amount. A promise never changes any debt.
+ * A promise is "kept" when received payments recorded after it was made, and dated from that day
+ * up to the promised date, reach the promised amount. A payment made earlier the same day does not
+ * count. A promise never changes any debt.
  */
 export function promiseState(promise: PromiseToPay, idx: LedgerIndex, today: ISODate): { state: PromiseState; paid: Minor } {
   if (promise.cancelledAt) return { state: "cancelled", paid: 0 };
@@ -99,7 +100,8 @@ export function promiseState(promise: PromiseToPay, idx: LedgerIndex, today: ISO
         p.direction === "receivable" &&
         p.currency === promise.currency &&
         p.date >= promise.madeOn &&
-        p.date <= promise.promisedDate,
+        p.date <= promise.promisedDate &&
+        p.createdAt >= promise.createdAt,
     )
     .reduce((n, p) => n + p.amount, 0);
   if (paid >= promise.amount) return { state: "kept", paid };

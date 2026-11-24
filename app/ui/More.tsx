@@ -21,9 +21,9 @@ import {
   Store,
 } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
-import { Empty, Field, Money, Seg, downloadText, go } from "@/lib/ui/components";
-import { errorMessage } from "@/lib/ui/i18n";
-import { createBackup, parseBackup, serializeBackup, type BackupFile } from "@/lib/core/backup";
+import { Empty, Field, useAsk, Money, Seg, downloadText, go } from "@/lib/ui/components";
+import { auditActionLabel, errorMessage, snapshotLabel, storeLabel } from "@/lib/ui/i18n";
+import { computeTotals, createBackup, parseBackup, serializeBackup, type BackupFile } from "@/lib/core/backup";
 import { prepareRestore, restoreBackup, loadLedger, type RestorePlan } from "@/lib/core/restore";
 import { hashPin } from "@/lib/core/crypto";
 import { periodReport, perPartyBalances, upcomingInstallments } from "@/lib/core/reports";
@@ -243,6 +243,7 @@ function Statements() {
 
 function Backup() {
   const { t, lang, data, ws, meta, saveMeta, store, reload, toast, today } = useApp();
+  const ask = useAsk();
   const [persist, setPersist] = useState<"granted" | "no" | "unsupported" | null>(null);
   const [estimate, setEstimate] = useState<{ usage?: number; quota?: number } | null>(null);
   const [scope, setScope] = useState<"workspace" | "all">("workspace");
@@ -315,7 +316,7 @@ function Backup() {
   };
   const doRestore = async () => {
     if (!file || !store) return;
-    if (mode === "replace" && !window.confirm(t("restoreReplace") + " ?")) return;
+    if (mode === "replace" && !(await ask({ title: t("restoreReplace"), message: t("restoreReplaceWarn"), confirmLabel: t("restoreReplace"), danger: true }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -393,7 +394,7 @@ function Backup() {
                 .filter(([, n]) => n)
                 .map(([k, n]) => (
                   <li key={k}>
-                    {k}: <bdi className="num">{n}</bdi>
+                    {storeLabel(lang, k)}: <bdi className="num">{n}</bdi>
                   </li>
                 ))}
             </ul>
@@ -406,7 +407,7 @@ function Backup() {
         {plan && !plan.issues.length && plan.manifestOk && (
           <>
             <p className="owed font-semibold">✓ {t("restoreChecked")}</p>
-            {file?.manifest.totals.map((x) => (
+            {file && computeTotals(plan.data, new Date(file.createdAt)).map((x) => (
               <p key={x.workspaceId + x.currency} className="help">
                 {plan.data.workspaces.find((w) => w.id === x.workspaceId)?.name} · <Money minor={x.receivable} currency={x.currency} className="owed" /> · <Money minor={x.payable} currency={x.currency} className="owe" />
               </p>
@@ -426,7 +427,7 @@ function Backup() {
           {snapshots.map((s) => (
             <div key={s.id} className="row">
               <span className="flex-1">
-                <bdi className="num">{formatDateTime(s.createdAt, ws?.timezone)}</bdi> · {s.reason}
+                <bdi className="num">{formatDateTime(s.createdAt, ws?.timezone)}</bdi> · {snapshotLabel(lang, s.reason)}
               </span>
               <button className="btn btn-sm" onClick={() => downloadSnapshot(s.id)}>
                 {t("download")}
@@ -648,13 +649,13 @@ function Security() {
         <label className="flex items-center gap-2">
           <input type="checkbox" className="h-5 w-5" checked={prefs.hideAmounts} onChange={(e) => setPrefs({ hideAmounts: e.target.checked })} /> {t("hideAmounts")}
         </label>
-        <p className="help">{t("notifHelp")}</p>
+        <p className="help">{t("hideAmountsHelp")}</p>
       </section>
       <section className="card stack p-4">
         <h2 className="section-title">{t("pinLock")}</h2>
         <p className="banner banner-warn">{t("pinHelp")}</p>
         {meta?.pin ? (
-          <button className="btn btn-danger w-fit" onClick={() => saveMeta({ pin: null }).then(() => toast(t("saved")))}>
+          <button className="btn btn-danger w-fit" onClick={() => saveMeta({ pin: null, pinFailures: 0, pinLastFailAt: null }).then(() => toast(t("saved")))}>
             {t("removePin")}
           </button>
         ) : (
@@ -662,7 +663,7 @@ function Security() {
             className="grid gap-2 sm:grid-cols-3"
             onSubmit={async (e) => {
               e.preventDefault();
-              await saveMeta({ pin: await hashPin(pin) });
+              await saveMeta({ pin: await hashPin(pin), pinFailures: 0, pinLastFailAt: null });
               setPin("");
               setPin2("");
               toast(t("saved"));
@@ -681,8 +682,17 @@ function Security() {
 }
 
 function Audit() {
-  const { data, ws, t } = useApp();
+  const { data, ws, t, idx, lang } = useApp();
   const list = useMemo(() => data.audit.filter((a) => a.workspaceId === ws?.id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 300), [data.audit, ws?.id]);
+  // Who or what the entry is about, in words: person, debt description, receipt or invoice number.
+  const subject = (id: string) => {
+    const adj = data.adjustments.find((a) => a.id === id);
+    const ob = idx?.obligation.get(adj?.obligationId ?? id);
+    const pay = idx?.payment.get(id);
+    const inv = data.invoices.find((i) => i.id === id);
+    const party = idx?.party.get(id) ?? idx?.party.get(ob?.partyId ?? pay?.partyId ?? inv?.partyId ?? "");
+    return [party?.displayName, ob?.description, pay?.receiptNumber, inv?.number].filter(Boolean).join(" · ");
+  };
   return (
     <>
       <h1 className="text-[22px] font-bold">{t("audit")}</h1>
@@ -700,8 +710,8 @@ function Audit() {
               <tr key={a.id}>
                 <td className="num whitespace-nowrap">{formatDateTime(a.at, ws?.timezone)}</td>
                 <td>
-                  <code className="text-[12px]">{a.action}</code>
-                  <span className="help block">{a.entityId}</span>
+                  <span className="font-semibold">{auditActionLabel(lang, a.action)}</span>
+                  {subject(a.entityId) && <span className="help block">{subject(a.entityId)}</span>}
                 </td>
                 <td>{a.reason}</td>
               </tr>

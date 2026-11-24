@@ -604,3 +604,43 @@ table.data th.amount {
     display: block !important;
   }
 }
+
+.nav-dot {
+  position: absolute;
+  top: -3px;
+  inset-inline-end: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--late);
+}
+
+/* Long labels: ".btn" is nowrap, which utilities in a lower layer cannot override. */
+.btn-wrap {
+  white-space: normal;
+  padding-inline: 6px;
+}
+
+.mic {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+}
+.mic-on {
+  background: var(--late);
+  animation: mic-pulse 1.4s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  50% {
+    box-shadow: 0 0 0 14px color-mix(in srgb, var(--late) 22%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-on {
+    animation: none;
+  }
+}

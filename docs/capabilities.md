@@ -23,7 +23,8 @@ This page states what the current build actually does on each platform, and what
 | Scope | This workspace or all workspaces. A workspace-scoped backup contains no other workspace's records (tested). |
 | Restore safety | 1) parse and check the version; 2) decrypt; 3) verify sha256; 4) load into a **temporary in-memory store**; 5) validate referential and financial invariants; 6) compare counts and totals with the manifest; 7) snapshot current data (kept in the `snapshots` store, downloadable); 8) apply in one transaction. Any failure in steps 1–6 leaves active data untouched (tested with a tampered file). |
 | Merge vs replace | The user chooses. Merge adds unknown ids, skips identical records and reports conflicts without overwriting, so restoring the same file twice adds nothing (tested). Replace clears and rewrites in one transaction. |
-| Automatic backups | **Not implemented.** Browsers cannot write files in the background. The home screen warns when there is no backup or the last one is more than 7 days old. |
+| One-tap backup | One encrypted file with every real notebook, handed to the phone's share sheet (Drive, WhatsApp, e-mail) or saved. Verified as restorable before it counts. Share sheets were simulated in tests and in the browser pane; **not tried on a phone.** |
+| Automatic backups | **Not implemented.** Browsers cannot write files in the background. The home screen warns from the number of unsaved changes and their age (decision D25). |
 | Backup status | "Last backup" records when a backup file was **generated and handed to the browser's download**. The app cannot confirm that the file reached a safe location. |
 
 ## Notifications and reminders
@@ -47,5 +48,6 @@ Settling, reversing or rescheduling a debt changes the derived due lists immedia
 ## Security notes
 
 - The PIN lock is a privacy screen stored as a salted PBKDF2 hash. **It does not encrypt data at rest.**
+- Voice entry, if the user agrees to it, makes the **browser** send the recorded audio to its maker (Google, Apple or Microsoft) to turn it into text. The app itself receives only the text. Without that consent nothing is recorded.
 - The app makes no network requests for data. It has no analytics or crash reporting, and logs no amounts or names.
 - `NEXT_PUBLIC_*` variables are public. None is a secret (`.env.example`).

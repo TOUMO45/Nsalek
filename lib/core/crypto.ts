@@ -37,27 +37,32 @@ export function randomBytes(n: number): Uint8Array<ArrayBuffer> {
 
 export const PBKDF2_ITERATIONS = 310_000;
 
-async function deriveKey(passphrase: string, salt: Uint8Array<ArrayBuffer>, iterations: number) {
+/** The returned key is non-extractable: it can be stored and used, but never read out. */
+export async function deriveKey(passphrase: string, salt: Uint8Array<ArrayBuffer>, iterations: number) {
   const base = await subtle().importKey("raw", enc.encode(passphrase), "PBKDF2", false, ["deriveKey"]);
   return subtle().deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
 }
 
 export type Envelope = { alg: "AES-GCM-256"; kdf: "PBKDF2-SHA-256"; iterations: number; salt: string; iv: string };
 
-export async function encryptText(plain: string, passphrase: string, iterations = PBKDF2_ITERATIONS): Promise<{ envelope: Envelope; ciphertext: string }> {
-  const salt = randomBytes(16);
-  const iv = randomBytes(12);
-  const key = await deriveKey(passphrase, salt, iterations);
+/** A passphrase-derived key with the parameters needed to derive it again elsewhere. */
+export type DerivedKey = { key: CryptoKey; salt: string; iterations: number };
+
+export async function encryptText(plain: string, secret: string | DerivedKey, iterations = PBKDF2_ITERATIONS): Promise<{ envelope: Envelope; ciphertext: string }> {
+  const salt = typeof secret === "string" ? randomBytes(16) : base64ToBytes(secret.salt);
+  const rounds = typeof secret === "string" ? iterations : secret.iterations;
+  const iv = randomBytes(12); // fresh for every message, also when the key is reused
+  const key = typeof secret === "string" ? await deriveKey(secret, salt, rounds) : secret.key;
   const ct = await subtle().encrypt({ name: "AES-GCM", iv }, key, enc.encode(plain));
   return {
-    envelope: { alg: "AES-GCM-256", kdf: "PBKDF2-SHA-256", iterations, salt: bytesToBase64(salt), iv: bytesToBase64(iv) },
+    envelope: { alg: "AES-GCM-256", kdf: "PBKDF2-SHA-256", iterations: rounds, salt: bytesToBase64(salt), iv: bytesToBase64(iv) },
     ciphertext: bytesToBase64(new Uint8Array(ct)),
   };
 }
 
 /** Throws Error("wrong_passphrase") when authentication fails (wrong passphrase or tampering). */
-export async function decryptText(ciphertext: string, passphrase: string, envelope: Envelope): Promise<string> {
-  const key = await deriveKey(passphrase, base64ToBytes(envelope.salt), envelope.iterations);
+export async function decryptText(ciphertext: string, secret: string | DerivedKey, envelope: Envelope): Promise<string> {
+  const key = typeof secret === "string" ? await deriveKey(secret, base64ToBytes(envelope.salt), envelope.iterations) : secret.key;
   try {
     const plain = await subtle().decrypt({ name: "AES-GCM", iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(ciphertext));
     return dec.decode(plain);

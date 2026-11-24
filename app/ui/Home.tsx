@@ -1,16 +1,17 @@
 "use client";
 import { useMemo } from "react";
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, NotebookPen, ShieldAlert } from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, Mic, NotebookPen } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
+import { BackupReminder } from "./Backup";
 import { peopleCount } from "@/lib/ui/i18n";
 import { useSheet } from "@/lib/ui/sheets";
 import { Avatar, DirectionIcon, Empty, Money } from "@/lib/ui/components";
 import { workspaceTotals, figuresOf } from "@/lib/core/ledger";
 import { dailyActions } from "@/lib/core/collections";
-import { daysBetween, formatDate } from "@/lib/core/dates";
+import { formatDate } from "@/lib/core/dates";
 
 export function Home() {
-  const { idx, today, t, prefs, meta, ws, lang, flashId } = useApp();
+  const { idx, today, t, prefs, ws, lang, flashId } = useApp();
   const open = useSheet();
   const totals = useMemo(() => (idx ? [...workspaceTotals(idx, today)].sort((a, b) => (a[0] === ws?.defaultCurrency ? -1 : b[0] === ws?.defaultCurrency ? 1 : a[0].localeCompare(b[0]))) : []), [idx, today, ws?.defaultCurrency]);
   const actions = useMemo(() => (idx ? dailyActions(idx, today) : []), [idx, today]);
@@ -26,22 +27,12 @@ export function Home() {
   const hasData = idx.obligation.size > 0;
   const overdueCount = totals.reduce((n, [, b]) => n + b.overdue, 0);
   const dueTodayCount = totals.reduce((n, [, b]) => n + b.dueToday, 0);
-  const backupAge = meta?.lastBackupAt ? daysBetween(meta.lastBackupAt.slice(0, 10), today) : null;
-  const staleBackup = hasData && !ws.demo && (backupAge === null || backupAge > 7);
   const owedLabel = t(prefs.dzWording ? "owedToMeDz" : "owedToMe");
   const oweLabel = t(prefs.dzWording ? "iOweDz" : "iOwe");
 
   return (
     <div className="stack">
-      {staleBackup && (
-        <a href="#/more/backup" className="banner banner-warn">
-          <ShieldAlert size={18} className="mt-0.5" aria-hidden />
-          <span className="flex-1">
-            {t("backupStale")} {t("lastBackup")}: <b>{meta?.lastBackupAt ? formatDate(meta.lastBackupAt.slice(0, 10), lang) : t("never")}</b>
-          </span>
-          <span className="font-bold underline">{t("backupNow")}</span>
-        </a>
-      )}
+      <BackupReminder />
 
       <section className="ruled card overflow-hidden" aria-label={`${owedLabel} / ${oweLabel}`}>
         <div className="grid grid-cols-2">
@@ -86,16 +77,20 @@ export function Home() {
         ))}
       </section>
 
+      <button className="btn w-full" onClick={() => open({ kind: "voice" })}>
+        <Mic size={20} aria-hidden /> {t("voiceStart")} · {t("voice")}
+      </button>
+
       <div className="grid grid-cols-3 gap-2">
-        <button className="btn btn-owed min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] leading-tight whitespace-normal" onClick={() => open({ kind: "debt", direction: "receivable" })}>
+        <button className="btn btn-owed min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] btn-wrap leading-tight" onClick={() => open({ kind: "debt", direction: "receivable" })}>
           <ArrowDownLeft size={20} aria-hidden />
           {t("addOwedToMe")}
         </button>
-        <button className="btn btn-owe min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] leading-tight whitespace-normal" onClick={() => open({ kind: "debt", direction: "payable" })}>
+        <button className="btn btn-owe min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] btn-wrap leading-tight" onClick={() => open({ kind: "debt", direction: "payable" })}>
           <ArrowUpRight size={20} aria-hidden />
           {t("addIOwe")}
         </button>
-        <button className="btn min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] leading-tight whitespace-normal" onClick={() => open({ kind: "payment" })}>
+        <button className="btn min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] btn-wrap leading-tight" onClick={() => open({ kind: "payment" })}>
           <HandCoins size={20} aria-hidden />
           {t("recordRepayment")}
         </button>

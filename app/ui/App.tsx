@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, CalendarClock, Eye, EyeOff, Home as HomeIcon, Lock, Menu, Plus, Users, WifiOff } from "lucide-react";
+import { BookOpen, CalendarClock, Eye, EyeOff, Home as HomeIcon, Lock, Menu, Mic, Plus, Users, WifiOff } from "lucide-react";
 import { AppProvider, useApp } from "@/lib/ui/state";
 import { SheetContext, useSheet, type SheetSpec } from "@/lib/ui/sheets";
 import { AskProvider, Toast, go, useOnline, useRoute } from "@/lib/ui/components";
@@ -11,6 +11,8 @@ import { genericNotification } from "@/lib/core/messages";
 import { timeIn } from "@/lib/core/dates";
 import { brand } from "@/lib/brand";
 import { seedDemo } from "@/lib/demo";
+import { RestoreCard } from "./Backup";
+import { useBackupStatus } from "./useQuickBackup";
 import { Home } from "./Home";
 import { PeopleList, PersonPage } from "./People";
 import { Due } from "./Due";
@@ -48,7 +50,13 @@ function Root() {
       </div>
     );
   if (app.locked) return <LockScreen />;
-  if (!app.ws) return <Onboarding />;
+  if (!app.ws)
+    return (
+      <AskProvider>
+        <Onboarding />
+        <Toast />
+      </AskProvider>
+    );
   return (
     <SheetContext.Provider value={setSheet}>
       <AskProvider>
@@ -62,6 +70,7 @@ function Root() {
 
 function useRecurringAndNotifications() {
   const { ws, run, idx, today, prefs, meta, saveMeta, data, lang } = useApp();
+  const backupUrgent = useBackupStatus().level === "urgent";
   const generatedFor = useRef<string | null>(null);
   // Recurring obligations: idempotent per period, so running at every start is safe.
   useEffect(() => {
@@ -74,8 +83,8 @@ function useRecurringAndNotifications() {
     if (!ws || !idx || !prefs.notifications || typeof Notification === "undefined" || Notification.permission !== "granted") return;
     if (meta?.lastNotifiedOn === today || inQuietHours(timeIn(ws.timezone), ws.settings.quietHours)) return;
     const count = dailyActions(idx, today).length;
-    if (!count) return;
-    const n = genericNotification(lang, count);
+    if (!count && !backupUrgent) return;
+    const n = genericNotification(lang, count, backupUrgent);
     const show = async () => {
       const reg = await navigator.serviceWorker?.getRegistration();
       if (reg) await reg.showNotification(n.title, { body: n.body, tag: "nsalek-daily", icon: "/icon-192.png" });
@@ -83,13 +92,14 @@ function useRecurringAndNotifications() {
     };
     void show().catch(() => undefined);
     void saveMeta({ lastNotifiedOn: today });
-  }, [ws, idx, today, prefs.notifications, meta?.lastNotifiedOn, saveMeta, lang]);
+  }, [ws, idx, today, prefs.notifications, meta?.lastNotifiedOn, saveMeta, lang, backupUrgent]);
 }
 
 function Shell() {
   const app = useApp();
   const { t, prefs, setPrefs, ws } = app;
   const route = useRoute();
+  const backupLevel = useBackupStatus().level;
   const online = useOnline();
   const setSheet = useSheet();
   const top = route.parts[0] ?? "";
@@ -134,6 +144,9 @@ function Shell() {
                 <WifiOff size={14} /> <span className="hidden sm:inline">{t("offline")}</span>
               </span>
             )}
+            <button className="icon-btn" onClick={() => setSheet({ kind: "voice" })} aria-label={t("voice")} title={t("voice")}>
+              <Mic size={20} />
+            </button>
             <button className="icon-btn" onClick={() => setPrefs({ hideAmounts: !prefs.hideAmounts })} aria-label={t("hideAmounts")} aria-pressed={prefs.hideAmounts}>
               {prefs.hideAmounts ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
@@ -169,8 +182,12 @@ function Shell() {
             {nav[2].label}
           </a>
           <a href="#/more" aria-current={top === "more" ? "page" : undefined}>
-            {nav[3].icon}
+            <span className="relative">
+              {nav[3].icon}
+              {backupLevel === "urgent" && <span className="nav-dot" />}
+            </span>
             {nav[3].label}
+            {backupLevel === "urgent" && <span className="sr-only">{t("backupUnsaved")}</span>}
           </a>
         </nav>
       )}
@@ -200,6 +217,7 @@ function Onboarding() {
   const [mode, setMode] = useState<"personal" | "business">("personal");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const start = async (demo: boolean) => {
     setBusy(true);
     try {
@@ -251,7 +269,13 @@ function Onboarding() {
         <button className="btn" disabled={busy} onClick={() => start(true)}>
           {t("startDemo")}
         </button>
+        {!restoring && (
+          <button className="btn" disabled={busy} onClick={() => setRestoring(true)}>
+            {t("restoreFromBackup")}
+          </button>
+        )}
       </div>
+      {restoring && <RestoreCard firstLaunch />}
     </div>
   );
 }

@@ -23,10 +23,12 @@ export function reminderMessage(lang: Lang, m: MessageInput): string {
 }
 
 /** Generic notification text: no names, no amounts (shown on lock screens). */
-export function genericNotification(lang: Lang, count: number): { title: string; body: string } {
-  if (lang === "ar") return { title: "نسالك", body: `لديك ${count} عناصر للمتابعة اليوم.` };
-  if (lang === "fr") return { title: "Nsalek", body: `Vous avez ${count} élément(s) à suivre aujourd’hui.` };
-  return { title: "Nsalek", body: `You have ${count} item(s) to follow up today.` };
+export function genericNotification(lang: Lang, count: number, backupUrgent = false): { title: string; body: string } {
+  const pick = (ar: string, fr: string, en: string) => (lang === "ar" ? ar : lang === "fr" ? fr : en);
+  const parts: string[] = [];
+  if (count) parts.push(pick(`لديك ${count} عناصر للمتابعة اليوم.`, `Vous avez ${count} élément(s) à suivre aujourd’hui.`, `You have ${count} item(s) to follow up today.`));
+  if (backupUrgent) parts.push(pick("بياناتك بدون نسخة احتياطية حديثة.", "Vos données n’ont pas de sauvegarde récente.", "Your data has no recent backup."));
+  return { title: lang === "ar" ? "نسالك" : "Nsalek", body: parts.join(" ") };
 }
 
 export function shareUrl(channel: "whatsapp" | "sms" | "email", phoneOrEmail: string, message: string, ios = false): string {

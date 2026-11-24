@@ -340,6 +340,9 @@ export type ImportBatch = {
 
 export type CommandRecord = { id: string; type: string; at: ISOTime; result: unknown };
 
+/** Non-extractable AES key. It never leaves the device and is not part of any backup. */
+export type BackupKey = { key: CryptoKey; salt: string; iterations: number; createdAt: ISOTime; confirmedAt: ISOTime };
+
 export type MetaRecord = {
   id: string; // "app"
   schemaVersion: number;
@@ -347,6 +350,10 @@ export type MetaRecord = {
   activeWorkspaceId: string | null;
   lastBackupAt?: ISOTime | null;
   lastBackupError?: string | null;
+  /** How the last backup left the app: handed to another app, or saved on this device. */
+  lastBackupVia?: "shared" | "downloaded" | null;
+  /** Key for one-tap backups, derived once from the user's passphrase (see core/quickBackup.ts). */
+  backupKey?: BackupKey | null;
   pin?: { salt: string; hash: string; iterations: number } | null;
   /** Consecutive wrong PINs and when the last one happened (see core/pin.ts). */
   pinFailures?: number;

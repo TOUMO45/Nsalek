@@ -9,6 +9,7 @@ import type { Lang } from "../core/money.ts";
 import { loadLedger } from "../core/restore.ts";
 import type { Store } from "../core/store.ts";
 import { DATA_STORES, emptyLedger, type LedgerData, type MetaRecord, type Workspace } from "../core/types.ts";
+import type { VoiceUnit } from "../core/voice.ts";
 import { openStore } from "../storage/idb.ts";
 import { translate, type Key } from "./i18n.ts";
 
@@ -18,9 +19,17 @@ export type Prefs = {
   hideAmounts: boolean;
   dzWording: boolean;
   notifications: boolean;
+  voiceLang: "ar-DZ" | "fr-FR" | "en-US";
+  /** How amounts are counted when no unit is spoken (Algeria: dinars or centimes). */
+  voiceUnit: VoiceUnit;
+  voiceAutoSave: boolean;
+  /** The user agreed that the browser's maker turns the audio into text. */
+  voiceConsent: boolean;
+  /** Notebook → spoken name → person, learned from confirmations. */
+  voiceAliases: Record<string, Record<string, string>>;
 };
 
-const DEFAULT_PREFS: Prefs = { lang: "ar", theme: "system", hideAmounts: false, dzWording: true, notifications: false };
+const DEFAULT_PREFS: Prefs = { lang: "ar", theme: "system", hideAmounts: false, dzWording: true, notifications: false, voiceLang: "ar-DZ", voiceUnit: "ask", voiceAutoSave: true, voiceConsent: false, voiceAliases: {} };
 const PREFS_KEY = "nsalek.prefs";
 
 function readPrefs(): Prefs {
@@ -58,6 +67,8 @@ export type AppCtx = {
   ws: Workspace | null;
   idx: LedgerIndex | null;
   today: string;
+  /** Minute-resolution clock, so screens can show elapsed time without reading it while rendering. */
+  nowMs: number;
   prefs: Prefs;
   setPrefs: (p: Partial<Prefs>) => void;
   lang: Lang;
@@ -81,6 +92,8 @@ export function useApp(): AppCtx {
 }
 
 export const newCommandId = () => crypto.randomUUID();
+
+const MONEY_COMMANDS = new Set(["createObligation", "recordPayment", "postInvoice", "commitImport"]);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AppCtx["status"]>("loading");
@@ -175,6 +188,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toastTimer.current = setTimeout(() => setToast(null), 2600);
   }, []);
 
+  // Once real money is recorded, ask the browser not to evict it. Asked once here; each backup asks again.
+  const asked = useRef(false);
+  const askProtectedStorage = useCallback(() => {
+    if (asked.current || !store || !navigator.storage?.persist) return;
+    asked.current = true;
+    void store
+      .run("readonly", (tx) => tx.get("meta", "app"))
+      .then(async (row) => {
+        if (!row || row.persistentStorage) return;
+        const granted = await navigator.storage.persist();
+        await store.run("readwrite", async (tx) => {
+          const now = await tx.get("meta", "app");
+          if (now) await tx.put("meta", { ...now, persistentStorage: granted ? "granted" : "denied" });
+        });
+      })
+      .catch(() => undefined);
+  }, [store]);
+
   const run = useCallback(
     async <T,>(type: string, payload: Record<string, unknown>, commandId?: string): Promise<T> => {
       if (!store) throw new Error("storage_unavailable");
@@ -183,9 +214,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const firstId = (outcome.writes.find((w) => ["obligations", "payments", "parties"].includes(w.store))?.value as { id?: string } | undefined)?.id;
       if (firstId) setFlash(firstId);
       channel.current?.postMessage({ type: "changed" });
+      if (MONEY_COMMANDS.has(type)) askProtectedStorage();
       return outcome.result;
     },
-    [store],
+    [store, askProtectedStorage],
   );
 
   const saveMeta = useCallback(
@@ -217,6 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ws,
     idx,
     today,
+    nowMs: clock,
     prefs,
     setPrefs,
     lang: prefs.lang,

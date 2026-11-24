@@ -49,6 +49,9 @@ Status as of 2026-11-22. Each item is in exactly one category:
 | PWA install with the generated icons (`icon.svg`, `icon-192.png`, `icon-512.png`) | Icons render (checked visually); "Add to home screen" was not tried on a device. |
 | Usability targets (first debt within ~1 min, repeat entry within ~10 s, users can explain owe vs owed) | Not tested with people. An automated walk-through took ~9 s for a first debt, which is **not** a user test. Pending: one personal user, one shopkeeper, one service provider. |
 
+| One-tap backup through a real share sheet; restore of a file received from Drive or WhatsApp | Simulated only. Try on Android Chrome and iPhone Safari. |
+| Voice entry with a real microphone, in Darija | Recognition was simulated; the rules are tested (`tests/voice.test.ts`). Real Darija accuracy of `ar-DZ` is **unknown**: record 50 real sentences per speaker and count wrong saves (target: 0). |
+
 ## Blocked by provider (needs configuration and authorization)
 
 - Automated SMS/WhatsApp/email delivery (requires an official provider, consent, cost disclosure, delivery webhooks).
@@ -59,7 +62,7 @@ Status as of 2026-11-22. Each item is in exactly one category:
 
 - Cloud sync. Command ids and the `commands` store are ready to serve as the outbox; conflict handling is not designed in code.
 - Team roles (owner/operator/read-only), customer read-only links.
-- AI/voice/OCR input. A deterministic sentence parser exists (`lib/core/parse.ts`) and flags uncertainty; nothing is sent to any AI provider.
+- AI/OCR input. Voice entry exists (D26–D28) without any AI provider of ours.
 - Cross-currency settlement and converted dashboard estimates.
 - XLSX export (CSV only, by design).
 - Native mobile wrappers, biometric unlock.

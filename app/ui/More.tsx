@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -21,22 +21,24 @@ import {
   Store,
 } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
-import { Empty, Field, useAsk, Money, Seg, downloadText, go } from "@/lib/ui/components";
-import { auditActionLabel, errorMessage, snapshotLabel, storeLabel } from "@/lib/ui/i18n";
-import { computeTotals, createBackup, parseBackup, serializeBackup, type BackupFile } from "@/lib/core/backup";
-import { prepareRestore, restoreBackup, loadLedger, type RestorePlan } from "@/lib/core/restore";
+import { Empty, Field, Money, Seg, go } from "@/lib/ui/components";
+import { auditActionLabel, errorMessage } from "@/lib/ui/i18n";
 import { hashPin } from "@/lib/core/crypto";
 import { periodReport, perPartyBalances, upcomingInstallments } from "@/lib/core/reports";
 import { addDays, formatDate, formatDateTime } from "@/lib/core/dates";
 import { CURRENCIES, parseAmount, toInputValue } from "@/lib/core/money";
 import { brand } from "@/lib/brand";
 import { seedDemo } from "@/lib/demo";
+import { Backup } from "./Backup";
+import { useBackupStatus } from "./useQuickBackup";
 import { Invoices, Notes, Recurring } from "./Business";
 import { CsvPage, LegacyImportPage } from "./ImportExport";
 import { Help } from "./Help";
 
 export function MorePage({ section, sub }: { section?: string; sub?: string }) {
   const { t, lang, ws } = useApp();
+  const status = useBackupStatus();
+  const unsaved = status.level === "due" || status.level === "urgent";
   if (!section) {
     const Chevron = lang === "ar" ? ChevronLeft : ChevronRight;
     const items: [string, string, React.ReactNode, boolean?][] = [
@@ -65,6 +67,7 @@ export function MorePage({ section, sub }: { section?: string; sub?: string }) {
               <a key={k} href={`#/more/${k}`} className="row">
                 <span className="muted">{icon}</span>
                 <span className="flex-1 font-semibold">{label}</span>
+                {k === "backup" && unsaved && <span className={`chip ${status.level === "urgent" ? "chip-late" : "chip-soon"}`}>{status.changes}</span>}
                 <Chevron size={18} className="muted" />
               </a>
             ))}
@@ -235,207 +238,6 @@ function Statements() {
         ))}
         {!list.length && <p className="help p-4">{t("noResults")}</p>}
       </div>
-    </>
-  );
-}
-
-// ---------------------------------------------------------------- backup & restore
-
-function Backup() {
-  const { t, lang, data, ws, meta, saveMeta, store, reload, toast, today } = useApp();
-  const ask = useAsk();
-  const [persist, setPersist] = useState<"granted" | "no" | "unsupported" | null>(null);
-  const [estimate, setEstimate] = useState<{ usage?: number; quota?: number } | null>(null);
-  const [scope, setScope] = useState<"workspace" | "all">("workspace");
-  const [encrypt, setEncrypt] = useState(true);
-  const [pass, setPass] = useState("");
-  const [pass2, setPass2] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [file, setFile] = useState<BackupFile | null>(null);
-  const [fileName, setFileName] = useState("");
-  const [rpass, setRpass] = useState("");
-  const [plan, setPlan] = useState<RestorePlan | null>(null);
-  const [mode, setMode] = useState<"merge" | "replace">("merge");
-  const [error, setError] = useState<string | null>(null);
-  const [snapshots, setSnapshots] = useState<{ id: string; createdAt: string; reason: string }[]>([]);
-
-  useEffect(() => {
-    if (!navigator.storage?.persisted) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPersist("unsupported");
-      return;
-    }
-    navigator.storage.persisted().then((p) => setPersist(p ? "granted" : "no"));
-    navigator.storage.estimate?.().then((e) => setEstimate(e));
-  }, []);
-  useEffect(() => {
-    store?.run("readonly", (tx) => tx.all("snapshots")).then((s) => setSnapshots(s.map(({ id, createdAt, reason }) => ({ id, createdAt, reason })).sort((a, b) => b.createdAt.localeCompare(a.createdAt))));
-  }, [store, data]);
-
-  const doExport = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const all = store ? await loadLedger(store) : data;
-      const backup = await createBackup(all, { workspaceIds: scope === "workspace" && ws ? [ws.id] : undefined, passphrase: encrypt ? pass : undefined, appVersion: brand.version });
-      downloadText(`nsalek-backup-${today}${encrypt ? "-encrypted" : ""}.json`, serializeBackup(backup), "application/json");
-      await saveMeta({ lastBackupAt: new Date().toISOString(), lastBackupError: null });
-      toast(t("saved"));
-    } catch (e) {
-      await saveMeta({ lastBackupError: String((e as Error).message) });
-      setError(errorMessage(lang, e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const pick = async (f: File | undefined) => {
-    setPlan(null);
-    setError(null);
-    if (!f) return;
-    try {
-      setFile(parseBackup(await f.text()));
-      setFileName(f.name);
-    } catch (e) {
-      setFile(null);
-      setError(errorMessage(lang, e));
-    }
-  };
-  const verify = async () => {
-    if (!file) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const p = await prepareRestore(file, rpass || undefined);
-      setPlan(p);
-      if (p.issues.length || !p.manifestOk) setError(errorMessage(lang, { code: p.issues.length ? "validation_failed" : "manifest_mismatch" }));
-    } catch (e) {
-      setError(errorMessage(lang, e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const doRestore = async () => {
-    if (!file || !store) return;
-    if (mode === "replace" && !(await ask({ title: t("restoreReplace"), message: t("restoreReplaceWarn"), confirmLabel: t("restoreReplace"), danger: true }))) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await restoreBackup(store, file, { mode, passphrase: rpass || undefined });
-      await reload();
-      const restoredWs = file.scope.workspaceIds;
-      if (mode === "replace" || !ws) await saveMeta({ activeWorkspaceId: restoredWs.includes(ws?.id ?? "") ? ws!.id : (restoredWs[0] ?? null) });
-      setPlan(null);
-      setFile(null);
-      toast(t("restoreDone"));
-    } catch (e) {
-      setError(errorMessage(lang, e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const downloadSnapshot = async (id: string) => {
-    const s = await store?.run("readonly", (tx) => tx.get("snapshots", id));
-    if (s) downloadText(`nsalek-${id}.json`, s.backup, "application/json");
-  };
-  const mb = (n?: number) => (n === undefined ? "?" : (n / 1024 / 1024).toFixed(1));
-  return (
-    <>
-      <h1 className="text-[22px] font-bold">{t("backup")}</h1>
-      <section className="card stack p-4">
-        <h2 className="section-title">{t("storageStatus")}</h2>
-        <p className={persist === "granted" ? "owed font-semibold" : "help"}>{persist === "granted" ? t("persistGranted") : t("persistNo")}</p>
-        {estimate && (
-          <p className="help num">
-            {mb(estimate.usage)} / {mb(estimate.quota)} MB
-          </p>
-        )}
-        {persist === "no" && (
-          <button className="btn btn-sm w-fit" onClick={async () => setPersist((await navigator.storage.persist()) ? "granted" : "no")}>
-            {t("requestPersist")}
-          </button>
-        )}
-        <p className="help">
-          {t("lastBackup")}: <b>{meta?.lastBackupAt ? formatDateTime(meta.lastBackupAt, ws?.timezone) : t("never")}</b>
-        </p>
-        {meta?.lastBackupError && <p className="error-text">{meta.lastBackupError}</p>}
-        <p className="help">{t("syncNotBackup")}</p>
-      </section>
-
-      <section className="card stack p-4">
-        <h2 className="section-title">{t("exportBackup")}</h2>
-        <Seg value={scope} onChange={setScope} options={[{ value: "workspace", label: t("thisWorkspace") }, { value: "all", label: t("allWorkspaces") }]} label={t("scope")} />
-        <label className="flex items-center gap-2">
-          <input type="checkbox" className="h-5 w-5" checked={encrypt} onChange={(e) => setEncrypt(e.target.checked)} /> {t("encrypt")}
-        </label>
-        {encrypt && (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <input className="input" type="password" autoComplete="new-password" placeholder={t("passphrase")} value={pass} onChange={(e) => setPass(e.target.value)} />
-              <input className="input" type="password" autoComplete="new-password" placeholder={`${t("passphrase")} (${t("confirm")})`} value={pass2} onChange={(e) => setPass2(e.target.value)} aria-invalid={!!pass2 && pass !== pass2} />
-            </div>
-            <p className="banner banner-warn">{t("passphraseWarn")}</p>
-          </>
-        )}
-        <button className="btn btn-primary" disabled={busy || (encrypt && (pass.length < 8 || pass !== pass2))} onClick={doExport}>
-          {busy ? t("saving") : t("exportBackup")}
-        </button>
-      </section>
-
-      <section className="card stack p-4">
-        <h2 className="section-title">{t("restore")}</h2>
-        <input type="file" accept="application/json,.json" className="input" onChange={(e) => pick(e.target.files?.[0])} />
-        {file && (
-          <>
-            <p className="help">
-              {fileName} · <bdi className="num">{formatDateTime(file.createdAt, ws?.timezone)}</bdi> · {file.encryption ? "AES-GCM" : "—"}
-            </p>
-            <ul className="help grid grid-cols-2 gap-x-4 sm:grid-cols-3">
-              {Object.entries(file.manifest.counts)
-                .filter(([, n]) => n)
-                .map(([k, n]) => (
-                  <li key={k}>
-                    {storeLabel(lang, k)}: <bdi className="num">{n}</bdi>
-                  </li>
-                ))}
-            </ul>
-            {file.encryption && <input className="input" type="password" placeholder={t("passphrase")} value={rpass} onChange={(e) => setRpass(e.target.value)} />}
-            <button className="btn" disabled={busy} onClick={verify}>
-              {t("dryRun")}
-            </button>
-          </>
-        )}
-        {plan && !plan.issues.length && plan.manifestOk && (
-          <>
-            <p className="owed font-semibold">✓ {t("restoreChecked")}</p>
-            {file && computeTotals(plan.data, new Date(file.createdAt)).map((x) => (
-              <p key={x.workspaceId + x.currency} className="help">
-                {plan.data.workspaces.find((w) => w.id === x.workspaceId)?.name} · <Money minor={x.receivable} currency={x.currency} className="owed" /> · <Money minor={x.payable} currency={x.currency} className="owe" />
-              </p>
-            ))}
-            <Seg value={mode} onChange={setMode} options={[{ value: "merge", label: t("restoreMerge") }, { value: "replace", label: t("restoreReplace") }]} />
-            <button className="btn btn-primary" disabled={busy} onClick={doRestore}>
-              {t("confirm")}
-            </button>
-          </>
-        )}
-        {error && <p className="banner banner-late">{error}</p>}
-      </section>
-
-      {snapshots.length > 0 && (
-        <section className="card overflow-hidden">
-          <h2 className="section-title px-4 pt-3 pb-1">{t("snapshots")}</h2>
-          {snapshots.map((s) => (
-            <div key={s.id} className="row">
-              <span className="flex-1">
-                <bdi className="num">{formatDateTime(s.createdAt, ws?.timezone)}</bdi> · {snapshotLabel(lang, s.reason)}
-              </span>
-              <button className="btn btn-sm" onClick={() => downloadSnapshot(s.id)}>
-                {t("download")}
-              </button>
-            </div>
-          ))}
-        </section>
-      )}
     </>
   );
 }

@@ -4,7 +4,8 @@ import type { Direction } from "../core/types.ts";
 
 export type SheetSpec =
   | { kind: "debt"; direction?: Direction; partyId?: string; noteId?: string; prefill?: { name?: string; amount?: string; description?: string; date?: string } }
-  | { kind: "payment"; direction?: Direction; partyId?: string; currency?: string }
+  | { kind: "payment"; direction?: Direction; partyId?: string; currency?: string; prefill?: { amount?: string; note?: string; date?: string } }
+  | { kind: "voice" }
   | { kind: "party"; partyId?: string }
   | { kind: "adjust"; obligationId: string }
   | { kind: "void"; obligationId: string }

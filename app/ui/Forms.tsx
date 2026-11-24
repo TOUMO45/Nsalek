@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, Copy, Mail, MessageCircle, Smartphone } from "lucide-react";
+import { VoiceSheet } from "./Voice";
 import { useApp, newCommandId } from "@/lib/ui/state";
 import type { SheetSpec } from "@/lib/ui/sheets";
 import { AmountInput, CurrencySelect, DirectionPicker, Field, Money, PartyPicker, Seg, Sheet, go, readFileAttachment, useAmount } from "@/lib/ui/components";
@@ -67,6 +68,8 @@ export function SheetHost({ spec, onClose }: { spec: SheetSpec; onClose: () => v
       return <DebtSheet spec={spec} onClose={onClose} />;
     case "payment":
       return <PaymentSheet spec={spec} onClose={onClose} />;
+    case "voice":
+      return <VoiceSheet onClose={onClose} />;
     case "party":
       return <PartySheet partyId={spec.partyId} onClose={onClose} />;
     case "adjust":
@@ -314,11 +317,11 @@ function PaymentSheet({ spec, onClose }: { spec: Extract<SheetSpec, { kind: "pay
   const [name, setName] = useState("");
   const [direction, setDirection] = useState<Direction>(spec.direction ?? "receivable");
   const [currency, setCurrency] = useState(spec.currency ?? ws!.defaultCurrency);
-  const [amount, setAmount, parsed, amountReady] = useAmount(currency);
-  const [date, setDate] = useState(today);
+  const [amount, setAmount, parsed, amountReady] = useAmount(currency, spec.prefill?.amount ?? "");
+  const [date, setDate] = useState(spec.prefill?.date ?? today);
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [reference, setReference] = useState("");
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(spec.prefill?.note ?? "");
   const [manual, setManual] = useState(false);
   const [manualLines, setManualLines] = useState<Record<string, string>>({});
   const [allowAdvance, setAllowAdvance] = useState(false);

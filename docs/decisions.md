@@ -23,6 +23,13 @@
 | D19 | Monthly schedules anchor on the start day. Months without that day use their last day (Jan 31 → Feb 28/29 → Mar 31) | Explicit end-of-month rule | — |
 | D20 | The brand "Nsalek / نسالك" is a configurable placeholder in `lib/brand.ts` and is not trademark-cleared | Master prompt | — |
 | D21 | Nothing is pushed, deployed or published without explicit authorization | Master prompt §14 | — |
+| D22 | One-tap backup: the passphrase is typed once; the AES key derived from it is stored in IndexedDB as a **non-extractable** `CryptoKey` and never enters a backup. Each file carries its salt, so another device rebuilds the key from the passphrase alone | A backup that needs typing is not made every day | Anyone using the unlocked device can make (not open) backups; a forgotten passphrase must be changed and a new backup made. The screen can check the passphrase and asks again after 60 days |
+| D23 | The backup file is shared as `.txt` (`text/plain`) | Chromium refuses to share `.json` files | Restore accepts both |
+| D24 | Every one-tap backup is reopened and validated as a restore would, before it counts. Closing the share sheet does not count. Backing up one notebook of several does not count | "Backed up" must mean restorable | Slightly slower |
+| D25 | Backup reminders follow what would be lost (audit events since the last backup), not only the age | An old backup with no change since is fine | Thresholds: due at 3 days or 20 changes, urgent at 7 days or 60 changes; never backed up: urgent after 3 days or 10 changes |
+| D26 | Voice entry uses the browser's speech recognition (`ar-DZ`, `fr-FR`, `en-US`) after explicit consent | The only transcription available without a server or paid key | Audio goes to the browser's maker (Google, Apple, Microsoft); needs the internet; Darija accuracy depends on them |
+| D27 | Spoken sentences are understood by fixed rules (`lib/core/voice.ts`). An entry is saved by itself (after a visible 5 s countdown, with undo) only when there is **no** doubt; every unknown word around the person or verb is a doubt. Negations and promises are never saved | Wrong money entries cost more than one tap | More questions at first |
+| D28 | Without a spoken unit, a DZD amount is settled only by the user's own setting (ask / dinars / centimes). A bare "مليون" is asked of dinar users | "عشرين ألف" is 20 000 DA or 200 DA | One question until the setting is chosen. Extends D11 and D12 to speech |
 
 ## Assumptions to confirm
 

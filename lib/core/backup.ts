@@ -1,6 +1,6 @@
 // Versioned backups: manifest with counts and totals, sha256 integrity over a canonical JSON
 // payload, optional AES-GCM encryption, and a validator used before any restore.
-import { decryptText, encryptText, sha256Hex, type Envelope } from "./crypto.ts";
+import { decryptText, encryptText, sha256Hex, type DerivedKey, type Envelope } from "./crypto.ts";
 import { activeAllocations, buildIndex, figuresOf, paymentFiguresOf, workspaceTotals } from "./ledger.ts";
 import { todayIn } from "./dates.ts";
 import { DATA_STORES, emptyLedger, type DataStore, type LedgerData } from "./types.ts";
@@ -72,7 +72,7 @@ export function computeTotals(data: LedgerData, at = new Date()): ManifestTotals
 
 export async function createBackup(
   all: LedgerData,
-  opts: { workspaceIds?: string[]; passphrase?: string; now?: Date; appVersion?: string; iterations?: number } = {},
+  opts: { workspaceIds?: string[]; passphrase?: string | DerivedKey; now?: Date; appVersion?: string; iterations?: number } = {},
 ): Promise<BackupFile> {
   const now = opts.now ?? new Date();
   const data = sortLedger(filterWorkspaces(all, opts.workspaceIds));
@@ -133,7 +133,7 @@ export function parseBackup(text: string): BackupFile {
 }
 
 /** Decrypts (when needed) and verifies integrity. Never touches active data. */
-export async function openBackup(file: BackupFile, passphrase?: string): Promise<LedgerData> {
+export async function openBackup(file: BackupFile, passphrase?: string | DerivedKey): Promise<LedgerData> {
   let json: string;
   if (file.encryption) {
     if (!passphrase) throw new BackupError("passphrase_required");

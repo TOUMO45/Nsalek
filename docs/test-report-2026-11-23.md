@@ -138,6 +138,8 @@ All "Must fix" (H1–H4) and "Should fix" (M1–M10) items are fixed. Each logic
 
 The "Polish" list in section 3 is still open, except the ⋯ menu and the "Annuler / Annuler" wording in the new dialogs.
 
+**Correction (2026-11-24):** section 2 said the 375 px layout was fine. It was not in French: the labels of the three home buttons overflowed ("white-space: nowrap" won over the wrap utility) and widened the page to 411 px. Fixed with `.btn-wrap`; the page is 375 px wide again.
+
 ## 6. Test environment notes
 
 - **Test notebook:** "Boutique Test" (made-up people) remains in the built-in browser's storage for `localhost:3200`. The test PIN was removed. Delete the notebook in Plus → Carnets, or clear that site's data.

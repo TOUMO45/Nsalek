@@ -15,3 +15,8 @@ npm-debug.log*
 
 # process state of the delivery supervisor (local only)
 /.supervisor/
+
+# Firebase CLI state; a project is always named on the command line (never the clinic's)
+/.firebase/
+/.firebaserc
+firebase-debug*.log

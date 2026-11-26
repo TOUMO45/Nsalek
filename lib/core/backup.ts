@@ -3,10 +3,11 @@
 import { decryptText, encryptText, sha256Hex, type DerivedKey, type Envelope } from "./crypto.ts";
 import { activeAllocations, buildIndex, figuresOf, paymentFiguresOf, workspaceTotals } from "./ledger.ts";
 import { todayIn } from "./dates.ts";
-import { DATA_STORES, emptyLedger, type DataStore, type LedgerData } from "./types.ts";
+import { CASH_IN, CASH_OUT, DATA_STORES, emptyLedger, type DataStore, type LedgerData } from "./types.ts";
 
 export const BACKUP_FORMAT = "nsalek-backup";
-export const SCHEMA_VERSION = 1;
+/** 2: the cash book. An older app refuses a newer file instead of dropping what it does not know. */
+export const SCHEMA_VERSION = 2;
 
 export type ManifestTotals = { workspaceId: string; currency: string; receivable: number; payable: number; advanceReceived: number; advancePaid: number };
 
@@ -202,6 +203,10 @@ export function validateLedger(data: LedgerData): ValidationIssue[] {
       if (paymentFiguresOf(idx, p).unallocated < 0) issues.push({ code: "overallocated_payment", store: "payments", id: p.id });
       if (p.state === "reversed" && activeAllocations(idx.allocByPay.get(p.id)).length) issues.push({ code: "reversed_with_allocations", store: "payments", id: p.id });
     }
+  }
+  for (const c of data.cashEntries) {
+    if (!Number.isSafeInteger(c.amount) || c.amount <= 0) issues.push({ code: "invalid_amount", store: "cashEntries", id: c.id });
+    if (c.direction !== (CASH_IN.includes(c.kind) ? "in" : CASH_OUT.includes(c.kind) ? "out" : null)) issues.push({ code: "invalid_cash_kind", store: "cashEntries", id: c.id });
   }
   return issues;
 }

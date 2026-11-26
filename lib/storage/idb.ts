@@ -5,7 +5,7 @@ import { INDEXES, type Store, type Tx } from "../core/store.ts";
 import { ALL_STORES, DomainError, type StoreName } from "../core/types.ts";
 
 export const DB_NAME = "nsalek";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 /** Versioned, additive schema upgrades. Never delete user data in an upgrade. */
 function upgrade(db: IDBDatabase, tx: IDBTransaction, oldVersion: number) {
@@ -15,7 +15,12 @@ function upgrade(db: IDBDatabase, tx: IDBTransaction, oldVersion: number) {
       for (const field of INDEXES[name] ?? []) os.createIndex(field, field, { unique: false });
     }
   }
-  // Future versions: `if (oldVersion < 2) { ... }` adding stores/indexes only.
+  // Version 2: the cash book. A store created at version 1 already has it (ALL_STORES).
+  if (oldVersion >= 1 && oldVersion < 2 && !db.objectStoreNames.contains("cashEntries")) {
+    const os = db.createObjectStore("cashEntries", { keyPath: "id" });
+    for (const field of INDEXES.cashEntries ?? []) os.createIndex(field, field, { unique: false });
+  }
+  // Future versions: `if (oldVersion < 3) { ... }` adding stores/indexes only.
   void tx;
 }
 

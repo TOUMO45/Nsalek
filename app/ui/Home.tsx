@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, Mic, NotebookPen } from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, Mic, NotebookPen, Wallet } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
 import { BackupReminder } from "./Backup";
 import { CloudNotice } from "./Account";
@@ -8,13 +8,16 @@ import { peopleCount } from "@/lib/ui/i18n";
 import { useSheet } from "@/lib/ui/sheets";
 import { Avatar, DirectionIcon, Empty, Money } from "@/lib/ui/components";
 import { workspaceTotals, figuresOf } from "@/lib/core/ledger";
+import { cashLines, cashTotals } from "@/lib/core/cash";
 import { dailyActions } from "@/lib/core/collections";
 import { formatDate } from "@/lib/core/dates";
 
 const ACTION = { minHeight: 60, padding: "10px 8px", gap: 4 } as const;
 
 export function Home() {
-  const { idx, today, t, prefs, ws, lang, flashId } = useApp();
+  const { idx, today, t, prefs, ws, lang, flashId, data, meta } = useApp();
+  const staff = !!meta?.staffMode;
+  const cashToday = useMemo(() => (ws ? cashTotals(cashLines(data, ws.id, today, today), ws.defaultCurrency) : null), [data, ws, today]);
   const open = useSheet();
   const totals = useMemo(() => (idx ? [...workspaceTotals(idx, today)].sort((a, b) => (a[0] === ws?.defaultCurrency ? -1 : b[0] === ws?.defaultCurrency ? 1 : a[0].localeCompare(b[0]))) : []), [idx, today, ws?.defaultCurrency]);
   const actions = useMemo(() => (idx ? dailyActions(idx, today) : []), [idx, today]);
@@ -35,9 +38,12 @@ export function Home() {
 
   return (
     <div className="stack">
-      <CloudNotice />
-      <BackupReminder />
+      {!staff && <CloudNotice />}
+      {!staff && <BackupReminder />}
 
+      {staff ? (
+        <p className="banner">{t("staffTotalsHidden")}</p>
+      ) : (
       <section className="hero" aria-label={`${owedLabel} / ${oweLabel}`}>
         {(totals.length ? totals : [[ws.defaultCurrency, null] as const]).map(([currency, b], i) => {
           const owed = b?.receivable ?? 0;
@@ -94,6 +100,7 @@ export function Home() {
           );
         })}
       </section>
+      )}
 
       <button className="btn w-full" style={{ justifyContent: "flex-start", gap: 12, paddingInlineStart: 6, minHeight: 50 }} onClick={() => open({ kind: "voice" })}>
         <span className="tile-icon" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
@@ -150,6 +157,26 @@ export function Home() {
               </span>
             </a>
           </div>
+
+          <a href="#/cash" className="card flex items-center gap-3 p-3">
+            <span className="tile-icon" style={{ background: "var(--t2)", color: "var(--t2i)" }}>
+              <Wallet size={20} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold">{t("cash")}</span>
+              <span className="help block">{t("cashToday")}</span>
+            </span>
+            {cashToday && (
+              <span className="text-end text-[14px]">
+                <span className="owed block font-bold">
+                  + <Money minor={cashToday.in} currency={ws.defaultCurrency} />
+                </span>
+                <span className="owe block font-bold">
+                  − <Money minor={cashToday.out} currency={ws.defaultCurrency} />
+                </span>
+              </span>
+            )}
+          </a>
 
           <section className="card">
             <div className="flex items-center justify-between px-4 pt-3 pb-1">

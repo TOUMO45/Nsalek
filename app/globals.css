@@ -512,6 +512,11 @@ a.row:hover {
 .hero .hero-owe .help {
   color: var(--muted);
 }
+/* A big amount may put its currency on the next line rather than run out of its box
+   (digit groups use no-break spaces, so the number itself never splits). */
+.hero .hero-amount .num {
+  white-space: normal;
+}
 .hero-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

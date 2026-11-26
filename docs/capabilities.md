@@ -6,12 +6,12 @@ This page states what the current build actually does on each platform, and what
 
 | Item | Behavior |
 |---|---|
-| System of record | IndexedDB database `nsalek` (version 1) in the browser profile. Every financial command runs in **one read-write transaction** covering all stores. "Saved" appears only after the transaction's `complete` event. |
+| System of record | IndexedDB database `nsalek` (version 2: the cash book) in the browser profile. Every financial command runs in **one read-write transaction** covering all stores. "Saved" appears only after the transaction's `complete` event. |
 | Failure handling | A failing command (validation, quota, I/O) aborts the whole transaction; nothing partial is written, and the form keeps its input and shows the error. Covered by tests: `tests/storage.test.ts` ("a failing command rolls back every write") and `tests/ledger.test.ts` ("storage failure leaves data unchanged"). |
 | Concurrency | The browser serializes overlapping read-write transactions, including across tabs, so two payments cannot both allocate the same remaining amount (fixture L, tested on the IndexedDB adapter). Other tabs reload when a `BroadcastChannel` message arrives. |
 | Idempotency | Each form creates a command id once. A retry or double tap returns the first result (fixture E, also across restart). |
 | Durability risk | Browsers can delete site data when the user clears it, in private windows, or under storage pressure. The app shows the persistent-storage status and can request it (`navigator.storage.persist()`), but **browser storage can still be lost**. Keep backups off the device. |
-| Schema upgrades | `lib/storage/idb.ts` `upgrade()` is versioned and additive only. |
+| Schema upgrades | `lib/storage/idb.ts` `upgrade()` is versioned and additive only. Version 2 adds the `cashEntries` store; a version-1 database with data was upgraded in a test (`tests/cash.test.ts`) and in the browser, nothing lost. Backups and copies are format 2; an older app refuses them (`newer_schema`) instead of dropping the cash book, and format-1 files still open. |
 
 ## Backup and restore
 
@@ -52,11 +52,20 @@ Design, dangers and their answers: `docs/cloud-design.md`. Off in a build withou
 | What is saved | Every real notebook, whole, in the backup format, gzip, sha256. **Not** photos, the demo notebook, the PIN, the backup key or settings. |
 | How it is saved | One Firestore transaction: all of it or nothing, only on top of the copy this phone knows (checked by the app and by `firestore.rules`). A lost answer is recognised afterwards. |
 | New phone | Signing in on an empty phone brings everything back, after the sha256 and the ledger rules were checked. An empty phone is never sent over a full copy. |
-| Two phones | Different records are combined by themselves. The same record changed differently, or a result that breaks a rule (overpaid debt, correction of a cancelled debt), is asked, for the whole notebook; the copy not chosen is kept. A repeated receipt number or imported line is asked too, and both can be kept. Not live: up to 5 minutes, or at opening. |
+| Two phones | While both are open, a phone hears within seconds that the other saved (a listener on the account's head document: one read when it starts and one per change; emulator test), then fetches and combines. Different records are combined by themselves. The same record changed differently, or a result that breaks a rule (overpaid debt, correction of a cancelled debt), is asked, for the whole notebook; the copy not chosen is kept. A repeated receipt number or imported line is asked too, and both can be kept. Not live: up to 5 minutes, or at opening. |
 | Older copies | Newest 3, 7 days, 4 weeks, 6 months, 10 pinned. Going back saves the present state first. |
 | Leaving | Sign out and keep, sign out and remove (refused until everything is saved), delete the account with every copy (the notebook stays on the phone). |
 | Privacy | Encrypted in transit and at rest by Google, readable only by the account (rules), **but not end-to-end**: the operator can technically read it. Said before the first sign-in. |
 | Limits | 8.5 MB compressed per notebook set. Free plan: 20,000 writes and 50,000 reads a day, 1 GiB in all; beyond it the app says so and keeps everything on the phone. |
+
+## Shop tools
+
+| Item | Behavior |
+|---|---|
+| Cash book | Money in and out of the drawer that is not a debt: opening cash, cash sales, other income, money put in; expenses, stock purchases, money taken out. Repayments of debts made in cash appear by themselves (never typed twice); other ways of paying stay out. Day view, cash at hand at the end of the day (shown with a minus when the drawer is short), month by kind and by label, CSV export. An entry is never edited: it is cancelled with a reason and stays visible. Integer minor units; tested (`tests/cash.test.ts`). |
+| Contacts | From a .vcf file (any phone's contacts app exports one; vCard 2.1/3.0/4.0, Arabic in quoted-printable) or the browser's contact picker where it exists (Chrome on Android, so also the Android app). Shown first, people already in the notebook (same name or number) are not added again, nameless contacts are not added. Nothing is sent anywhere. Picker **not tried on a phone**. |
+| Balance link | A link that shows one person their balance and latest lines (20, or 12 in a reminder). The figures are inside the link after `#`, which the browser never sends to a server; it is a picture of one day, not a live view; anyone with the link can see it. The viewer accepts only a well-formed snapshot (whole minor units, bounded sizes). From the person's page, and as an option in reminders. |
+| Staff mode | The owner hands the phone to an employee (an owner PIN is required). Staff record people, debts, repayments, cash, promises, reminders, notes and photos; corrections, cancellations, merges, imports, settings, backups, accounts and notebooks are refused **by the command engine**, which reads staff mode inside each transaction, not only by the screens. Totals are hidden; the audit log marks staff entries; leaving needs the owner's PIN; reloading does not leave it. It guards against mistakes and curiosity on a shared phone, not against someone who takes the phone apart. Staff on **their own phones** (shared notebooks) is **not built**. |
 
 ## Notifications and reminders
 
@@ -64,7 +73,7 @@ Three mechanisms, kept separate:
 
 1. **Local owner notifications.** If the user enables them (permission prompt), the app shows one **generic** notification per day ("You have N items to follow up today", no names or amounts) **when the app is opened or brought back** outside quiet hours. **There is no closed-app, scheduled or after-reboot delivery** on the web. Notification Triggers are not a shipped standard, and Periodic Background Sync is Chromium-only, heuristic and not used. If permission is denied, the in-app Due list still works.
 2. **User-reviewed sharing.** WhatsApp (`wa.me`), SMS (`sms:`) and email (`mailto:`) open the person's own app with a draft. The log records `opened_for_sharing` when the composer is opened and `marked_sent` only when the user says so. The outstanding amount is recomputed right before the message is prepared (`balance_changed` otherwise).
-3. **Automated provider delivery.** **Not implemented.** The statuses `provider_accepted` and `delivered` exist in the model, but the app refuses to set them (`no_provider_evidence`). No unofficial WhatsApp automation and no bulk sending.
+3. **Automated provider delivery.** **Not implemented**, on purpose: it needs a server and a paid SMS or WhatsApp Business service, and the brief forbids sending reminders to customers. A reminder can carry the person's balance link. The statuses `provider_accepted` and `delivered` exist in the model, but the app refuses to set them (`no_provider_evidence`). No unofficial WhatsApp automation and no bulk sending.
 
 Settling, reversing or rescheduling a debt changes the derived due lists immediately, because no reminder is pre-scheduled that could go stale.
 

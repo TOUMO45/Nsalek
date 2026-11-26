@@ -1,0 +1,42 @@
+{
+  "packageId": "app.nsalek.twa",
+  "host": "nsalek-app.web.app",
+  "name": "Nsalek — نسالك",
+  "launcherName": "Nsalek",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#0e6b50",
+  "themeColorDark": "#0e6b50",
+  "navigationColor": "#0e6b50",
+  "navigationColorDark": "#0e6b50",
+  "navigationDividerColor": "#00000000",
+  "navigationDividerColorDark": "#00000000",
+  "backgroundColor": "#eff6f2",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://nsalek-app.web.app/icon-512.png",
+  "maskableIconUrl": "https://nsalek-app.web.app/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./nsalek-upload.keystore",
+    "alias": "nsalek"
+  },
+  "appVersionName": "0.1.0",
+  "appVersion": "0.1.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "webManifestUrl": "https://nsalek-app.web.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://nsalek-app.web.app/",
+  "minSdkVersion": 21,
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}

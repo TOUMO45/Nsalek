@@ -47,6 +47,12 @@ Fiche → **Relevé** → période, devise et langue → **Imprimer / PDF** → 
 - **Ce qui n’est pas copié** : les photos et le carnet de démonstration.
 - La copie est sur des serveurs de Google ; l’exploitant de l’application peut techniquement y accéder. « Supprimer le compte » efface tout ce qui est en ligne.
 
+## Caisse, contacts, lien du compte, mode employé
+- **Caisse** (menu ou accueil) : ventes au comptant, dépenses, achats, fonds de caisse. Les remboursements en espèces des dettes y apparaissent d’eux-mêmes. Une écriture ne s’efface pas : « Annuler l’écriture » avec un motif.
+- **Contacts** : Personnes → Contacts → « Choisir dans les contacts » (Chrome sur Android) ou un fichier .vcf exporté de l’application Contacts. Les personnes déjà présentes ne sont pas ajoutées deux fois.
+- **Lien du compte** : sur la page d’une personne, envoie un lien où elle voit son solde. Les chiffres sont dans le lien, sur aucun serveur ; c’est une photo du jour.
+- **Mode employé** : Plus → Confidentialité et verrou. Il faut d’abord un code. L’employé saisit, il ne corrige ni n’annule ; votre code termine le mode.
+
 ## Copie dans votre Google Drive (facultatif)
 - **Plus → Sauvegarde → Connecter Google Drive** : une copie du carnet, photos comprises, va dans un dossier caché de *votre* Google Drive. Seul Nsalek l’ouvre ; elle compte dans votre espace Google (15 Go gratuits).
 - L’autorisation de Google dure environ une heure : pendant ce temps les changements sont copiés d’eux-mêmes. Après, touchez **Copier maintenant**.

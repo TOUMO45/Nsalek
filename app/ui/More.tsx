@@ -20,6 +20,7 @@ import {
   Repeat,
   Settings as SettingsIcon,
   Store,
+  Wallet,
 } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
 import { Empty, Field, Money, Seg, go } from "@/lib/ui/components";
@@ -39,8 +40,12 @@ import { Invoices, Notes, Recurring } from "./Business";
 import { CsvPage, LegacyImportPage } from "./ImportExport";
 import { Help } from "./Help";
 
+/** What an employee may open (see lib/core/staff.ts). */
+const STAFF_PAGES = new Set(["cash", "notes", "help", "about"]);
+
 export function MorePage({ section, sub }: { section?: string; sub?: string }) {
-  const { t, lang, ws } = useApp();
+  const { t, lang, ws, meta } = useApp();
+  const staff = !!meta?.staffMode;
   const status = useBackupStatus();
   const cloud = useCloud();
   const unsaved = status.level === "due" || status.level === "urgent";
@@ -48,6 +53,7 @@ export function MorePage({ section, sub }: { section?: string; sub?: string }) {
     const Chevron = lang === "ar" ? ChevronLeft : ChevronRight;
     const items: [string, string, React.ReactNode, boolean?][] = [
       ["account", accountText(lang, "title"), <UserRound key="i" size={20} />, !cloud.available],
+      ["cash", t("cash"), <Wallet key="i" size={20} />],
       ["reports", t("reports"), <BarChart3 key="i" size={20} />],
       ["statements", t("statements"), <FileText key="i" size={20} />],
       ["invoices", t("invoices"), <Receipt key="i" size={20} />, ws?.mode !== "business" && !ws?.settings.invoices.enabled],
@@ -68,9 +74,9 @@ export function MorePage({ section, sub }: { section?: string; sub?: string }) {
         <h1 className="text-[22px] font-bold">{t("more")}</h1>
         <nav className="card overflow-hidden">
           {items
-            .filter(([, , , hidden]) => !hidden)
+            .filter(([k, , , hidden]) => !hidden && (!staff || STAFF_PAGES.has(k)))
             .map(([k, label, icon]) => (
-              <a key={k} href={`#/more/${k}`} className="row">
+              <a key={k} href={k === "cash" ? "#/cash" : `#/more/${k}`} className="row">
                 <span className="muted">{icon}</span>
                 <span className="flex-1 font-semibold">{label}</span>
                 {k === "backup" && unsaved && <span className={`chip ${status.level === "urgent" ? "chip-late" : "chip-soon"}`}>{status.changes}</span>}
@@ -87,6 +93,7 @@ export function MorePage({ section, sub }: { section?: string; sub?: string }) {
     </a>
   );
   const page = (() => {
+    if (staff && !STAFF_PAGES.has(section)) return <p className="banner banner-warn">{errorMessage(lang, { code: "staff_not_allowed" })}</p>;
     switch (section) {
       case "account":
         return <AccountPage />;
@@ -465,7 +472,7 @@ function Security() {
         <h2 className="section-title">{t("pinLock")}</h2>
         <p className="banner banner-warn">{t("pinHelp")}</p>
         {meta?.pin ? (
-          <button className="btn btn-danger w-fit" onClick={() => saveMeta({ pin: null, pinFailures: 0, pinLastFailAt: null }).then(() => toast(t("saved")))}>
+          <button className="btn btn-danger w-fit" disabled={!!meta.staffMode} onClick={() => saveMeta({ pin: null, pinFailures: 0, pinLastFailAt: null }).then(() => toast(t("saved")))}>
             {t("removePin")}
           </button>
         ) : (
@@ -486,6 +493,22 @@ function Security() {
             </button>
           </form>
         )}
+      </section>
+      <section className="card stack p-4">
+        <h2 className="section-title">{t("staffMode")}</h2>
+        <p>{t("staffHelp")}</p>
+        <p className="help">{t("staffLimit")}</p>
+        {!meta?.pin && <p className="banner banner-warn">{t("staffNeedsPin")}</p>}
+        <button
+          className="btn btn-primary w-fit"
+          disabled={!meta?.pin}
+          onClick={async () => {
+            await saveMeta({ staffMode: true });
+            go("/");
+          }}
+        >
+          {t("staffStart")}
+        </button>
       </section>
     </>
   );
@@ -521,6 +544,7 @@ function Audit() {
                 <td className="num whitespace-nowrap">{formatDateTime(a.at, ws?.timezone)}</td>
                 <td>
                   <span className="font-semibold">{auditActionLabel(lang, a.action)}</span>
+                  {a.actor === "staff" && <span className="chip chip-soon ms-1">{t("actor_staff")}</span>}
                   {subject(a.entityId) && <span className="help block">{subject(a.entityId)}</span>}
                 </td>
                 <td>{a.reason}</td>
@@ -576,6 +600,9 @@ function About() {
             </li>
           ))}
         </ul>
+        <a className="btn btn-sm mt-3 w-fit" href="/privacy" target="_blank" rel="noopener">
+          {t("privacy")}
+        </a>
       </section>
     </>
   );

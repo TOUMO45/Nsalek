@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "<PACKAGE_ID: same as packageId in android/twa-manifest.json, proposed app.nsalek.twa>",
+      "sha256_cert_fingerprints": [
+        "<SHA-256 of the Play App Signing key: Play Console, App integrity, App signing>",
+        "<SHA-256 of the upload key: keytool -list -v -keystore nsalek-upload.keystore -alias nsalek>"
+      ]
+    }
+  }
+]

@@ -17,7 +17,7 @@ export const fingerprint = (data: LedgerData) => canonical(cloudView(data));
 
 /** No notebook, or only empty ones (a notebook just made at the first start). */
 export function isBlank(view: LedgerData): boolean {
-  return ![view.parties, view.obligations, view.payments, view.notes, view.recurringPlans, view.invoices].some((l) => l.length > 0);
+  return ![view.parties, view.obligations, view.payments, view.notes, view.recurringPlans, view.invoices, view.cashEntries].some((l) => l.length > 0);
 }
 
 async function pipe(bytes: Uint8Array<ArrayBuffer>, stream: GenericTransformStream): Promise<Uint8Array<ArrayBuffer>> {
@@ -36,7 +36,7 @@ export async function pack(data: LedgerData, opts: { now: Date; appVersion?: str
     sha: file.manifest.payloadSha256,
     schemaVersion: file.schemaVersion,
     people: view.parties.filter((p) => !p.mergedIntoId).length,
-    entries: view.obligations.length + view.payments.length,
+    entries: view.obligations.length + view.payments.length + view.cashEntries.length,
   };
 }
 

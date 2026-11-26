@@ -141,7 +141,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setStore(s);
         const { m } = await load(s);
-        if (m.pin) setLocked(true);
+        // In staff mode the phone opens for the employee; the owner's PIN only ends staff mode.
+        if (m.pin && !m.staffMode) setLocked(true);
         setStatus("ready");
         try {
           channel.current = new BroadcastChannel("nsalek");

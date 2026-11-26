@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, CalendarClock, Eye, EyeOff, Home as HomeIcon, Lock, Menu, Mic, Plus, Users, WifiOff } from "lucide-react";
+import { BookOpen, CalendarClock, Eye, EyeOff, Home as HomeIcon, Lock, Menu, Mic, Plus, Users, Wallet, WifiOff } from "lucide-react";
 import { AppProvider, useApp } from "@/lib/ui/state";
 import { CloudProvider, useCloud } from "@/lib/ui/cloud";
 import { accountText } from "@/lib/ui/accountText";
@@ -15,6 +15,8 @@ import { brand } from "@/lib/brand";
 import { seedDemo } from "@/lib/demo";
 import { RestoreCard } from "./Backup";
 import { DriveRestore } from "./Drive";
+import { CashPage } from "./Cash";
+import { BalanceView } from "./BalanceView";
 import { DriveProvider, useDrive } from "@/lib/ui/drive";
 import { driveText } from "@/lib/ui/driveText";
 import { CloudButton, FirstSignIn } from "./Account";
@@ -41,7 +43,11 @@ export default function App() {
 function Root() {
   const app = useApp();
   const [sheet, setSheet] = useState<SheetSpec | null>(null);
+  const route = useRoute();
   useRecurringAndNotifications();
+
+  // A balance link someone was sent: shown on its own, whatever is (or is not) on this phone.
+  if (route.parts[0] === "b" && route.parts[1]) return <BalanceView code={route.parts[1]} />;
 
   if (app.status === "loading")
     return (
@@ -113,6 +119,7 @@ function Shell() {
   const online = useOnline();
   const setSheet = useSheet();
   const top = route.parts[0] ?? "";
+  const [leaving, setLeaving] = useState(false);
   const nav = [
     { href: "#/", key: "", label: t("home"), icon: <HomeIcon size={22} /> },
     { href: "#/people", key: "people", label: t("people"), icon: <Users size={22} /> },
@@ -120,6 +127,8 @@ function Shell() {
     { href: "#/more", key: "more", label: t("more"), icon: <Menu size={22} /> },
   ];
   const printOnly = top === "statement" || top === "receipt" || top === "invoice-print";
+  // Without a PIN (removed from an older screen) there is nothing to ask: the owner chose no protection.
+  if (leaving) return <LockScreen title={t("staffExitPin")} onCancel={() => setLeaving(false)} onOk={async () => (await app.saveMeta({ staffMode: false }), setLeaving(false))} />;
   return (
     <div className={printOnly ? "" : "shell"}>
       {!printOnly && (
@@ -141,6 +150,9 @@ function Shell() {
               {n.icon} {n.label}
             </a>
           ))}
+          <a href="#/cash" aria-current={top === "cash" ? "page" : undefined}>
+            <Wallet size={22} /> {t("cash")}
+          </a>
         </aside>
       )}
       <div>
@@ -168,7 +180,7 @@ function Shell() {
             <button className="icon-btn" onClick={() => setPrefs({ hideAmounts: !prefs.hideAmounts })} aria-label={t("hideAmounts")} aria-pressed={prefs.hideAmounts}>
               {prefs.hideAmounts ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
-            {app.meta?.pin && (
+            {app.meta?.pin && !app.meta?.staffMode && (
               <button className="icon-btn" onClick={() => app.setLocked(true)} aria-label={t("lock")}>
                 <Lock size={20} />
               </button>
@@ -176,6 +188,14 @@ function Shell() {
           </header>
         )}
         <main className={printOnly ? "" : "main"}>
+          {app.meta?.staffMode && !printOnly && (
+            <div className="banner banner-warn mb-3 items-center no-print">
+              <span className="flex-1 font-semibold">{t("staffBanner")}</span>
+              <button className="btn btn-sm" onClick={() => (app.meta?.pin ? setLeaving(true) : void app.saveMeta({ staffMode: false }))}>
+                {t("staffOwner")}
+              </button>
+            </div>
+          )}
           <Router />
         </main>
       </div>
@@ -223,6 +243,7 @@ function Router() {
   if (a === "people" && b) return <PersonPage partyId={b} />;
   if (a === "people") return <PeopleList />;
   if (a === "due") return <Due tab={b} />;
+  if (a === "cash") return <CashPage date={b} />;
   if (a === "more") return <MorePage section={b} sub={parts[2]} />;
   if (a === "statement" && b) return <StatementPage partyId={b} query={query} />;
   if (a === "receipt" && b) return <ReceiptPage paymentId={b} />;
@@ -316,7 +337,8 @@ function Onboarding() {
   );
 }
 
-function LockScreen() {
+/** The privacy lock; also the owner's PIN that ends staff mode (`onOk`). */
+function LockScreen({ title, onOk, onCancel }: { title?: string; onOk?: () => Promise<void>; onCancel?: () => void } = {}) {
   const { t, meta, setLocked, saveMeta } = useApp();
   const [pin, setPin] = useState("");
   const [err, setErr] = useState(false);
@@ -345,7 +367,8 @@ function LockScreen() {
     try {
       if (meta?.pin && (await verifyPin(pin, meta.pin))) {
         if (count.current) await saveMeta({ pinFailures: 0, pinLastFailAt: null });
-        setLocked(false);
+        if (onOk) await onOk();
+        else setLocked(false);
       } else {
         count.current += 1;
         await saveMeta({ pinFailures: count.current, pinLastFailAt: new Date().toISOString() });
@@ -362,7 +385,7 @@ function LockScreen() {
     <form onSubmit={submit} className="mx-auto flex min-h-dvh max-w-xs flex-col justify-center gap-4 p-6 text-center">
       <Lock className="mx-auto owed" size={36} aria-hidden />
       <label className="font-bold" htmlFor="pin">
-        {t("enterPin")}
+        {title ?? t("enterPin")}
       </label>
       <input id="pin" className="input num text-center text-[24px] tracking-[0.4em]" type="password" inputMode="numeric" autoComplete="off" autoFocus value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))} aria-invalid={err} />
       {err && !waitSeconds && <p className="error-text">{t("wrongPin")}</p>}
@@ -374,6 +397,11 @@ function LockScreen() {
       <button className="btn btn-primary" disabled={pin.length < 4 || waitSeconds > 0 || checking}>
         {t("unlock")}
       </button>
+      {onCancel && (
+        <button type="button" className="btn" onClick={onCancel}>
+          {t("cancel")}
+        </button>
+      )}
       <p className="help">{t("pinHelp")}</p>
     </form>
   );

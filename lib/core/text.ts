@@ -24,7 +24,8 @@ export type PhoneResult = { value: string; e164: boolean };
  * are kept as E.164. Anything else is returned cleaned but flagged as not normalized.
  */
 export function normalizePhone(input: string, country = "DZ"): PhoneResult | null {
-  const raw = normalizeDigits(input ?? "").replace(/[\s().\-/  ]/g, "");
+  // "+213 (0) 555..." writes the trunk 0 that a number with its country code drops.
+  const raw = normalizeDigits(input ?? "").replace(/\(0\)/g, "").replace(/[\s().\-/  ]/g, "");
   if (!raw) return null;
   let s = raw.startsWith("00") ? "+" + raw.slice(2) : raw;
   if (s.startsWith("+")) {

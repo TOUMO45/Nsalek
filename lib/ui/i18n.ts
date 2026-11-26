@@ -9,6 +9,100 @@ const S = {
   add: ["إضافة", "Ajouter", "Add"],
   due: ["المستحقات", "Échéances", "Due"],
   more: ["المزيد", "Plus", "More"],
+  privacy: ["سياسة الخصوصية", "Confidentialité", "Privacy policy"],
+  // staff mode
+  staffMode: ["وضع العامل", "Mode employé", "Staff mode"],
+  staffHelp: [
+    "سلّم الهاتف لعامل: يسجّل الأشخاص والديون والتسديدات والصندوق والوعود والتذكيرات. لا يستطيع التصحيح ولا الإلغاء ولا الاستيراد ولا الإعدادات ولا النسخ، ولا يرى المجاميع. كل ما يسجّله يظهر في سجل التدقيق باسم «عامل». للخروج يلزم رمزك.",
+    "Confiez le téléphone à un employé : il enregistre personnes, dettes, remboursements, caisse, promesses et relances. Il ne peut ni corriger, ni annuler, ni importer, ni toucher aux réglages ou aux sauvegardes, et ne voit pas les totaux. Tout ce qu’il saisit apparaît dans le journal comme « employé ». Pour sortir, votre code est demandé.",
+    "Hand the phone to an employee: they record people, debts, repayments, cash, promises and reminders. They cannot correct, cancel, import, or touch settings or backups, and do not see the totals. Everything they enter shows in the audit log as “staff”. Leaving needs your PIN.",
+  ],
+  staffLimit: [
+    "حماية من الأخطاء والفضول على هاتف مشترك، وليست حماية من شخص يفكّك الهاتف.",
+    "Une protection contre les erreurs et la curiosité sur un téléphone partagé, pas contre quelqu’un qui démonte le téléphone.",
+    "Protection against mistakes and curiosity on a shared phone, not against someone who takes the phone apart.",
+  ],
+  staffStart: ["سلّم الهاتف للعامل", "Passer en mode employé", "Hand over to staff"],
+  staffNeedsPin: ["ضع رمزاً أولاً (أعلاه): هو الذي يُنهي وضع العامل.", "Choisissez d’abord un code (ci-dessus) : c’est lui qui termine le mode employé.", "Set a PIN first (above): it is what ends staff mode."],
+  staffBanner: ["وضع العامل: تسجيل فقط", "Mode employé : saisie seulement", "Staff mode: recording only"],
+  staffOwner: ["أنا صاحب المحل", "Je suis le patron", "I am the owner"],
+  staffExitPin: ["رمز صاحب المحل لإنهاء وضع العامل", "Code du patron pour quitter le mode employé", "Owner's PIN to leave staff mode"],
+  staffTotalsHidden: ["المجاميع مخفية في وضع العامل.", "Les totaux sont masqués en mode employé.", "Totals are hidden in staff mode."],
+  actor_staff: ["عامل", "employé", "staff"],
+  actor_owner: ["صاحب المحل", "patron", "owner"],
+  // balance link
+  balanceLink: ["رابط الحساب", "Lien du compte", "Balance link"],
+  balanceLinkHelp: [
+    "رابط يرى به الشخص رصيده وآخر عملياته. الأرقام داخل الرابط نفسه، ولا تُحفظ على أي خادم.",
+    "Un lien où la personne voit son solde et ses dernières opérations. Les chiffres sont dans le lien lui-même, sur aucun serveur.",
+    "A link where the person sees their balance and latest entries. The figures are inside the link itself, on no server.",
+  ],
+  balanceLinkText: ["حساب", "Compte de", "Account of"],
+  balanceLinkCopied: ["نُسخ الرابط", "Lien copié", "Link copied"],
+  balanceLinkAdd: ["أضف رابط حسابه إلى الرسالة", "Ajouter le lien de son compte au message", "Add the link to their account to the message"],
+  // contacts
+  contacts: ["جهات الاتصال", "Contacts", "Contacts"],
+  contactsImport: ["إضافة أشخاص من جهات الاتصال", "Ajouter depuis les contacts", "Add people from contacts"],
+  contactsHelp: [
+    "اختر من جهات اتصال هاتفك، أو من ملف جهات الاتصال (.vcf): تطبيق جهات الاتصال ← تصدير. لا يُرسل شيء إلى أي مكان.",
+    "Choisissez dans les contacts du téléphone, ou un fichier de contacts (.vcf) : application Contacts → Exporter. Rien n’est envoyé nulle part.",
+    "Choose from your phone's contacts, or a contacts file (.vcf): Contacts app → Export. Nothing is sent anywhere.",
+  ],
+  contactsPick: ["اختر من جهات الاتصال", "Choisir dans les contacts", "Choose from contacts"],
+  fromContacts: ["من جهات الاتصال", "Depuis mes contacts", "From my contacts"],
+  contactsFile: ["ملف جهات الاتصال (.vcf)", "Fichier de contacts (.vcf)", "Contacts file (.vcf)"],
+  contactsNone: ["لم نجد أي جهة اتصال في هذا الملف.", "Aucun contact trouvé dans ce fichier.", "No contact found in this file."],
+  contactsTooMany: ["يظهر أول 1000 فقط.", "Seuls les 1 000 premiers sont affichés.", "Only the first 1,000 are shown."],
+  contactsAlready: ["موجود مسبقاً", "Déjà là", "Already there"],
+  contactsBadNumber: ["رقم غير مفهوم: يُضاف بدون رقم", "Numéro illisible : ajouté sans numéro", "Number not understood: added without it"],
+  contactsNoName: ["بدون اسم", "Sans nom", "No name"],
+  contactsAdd: ["إضافة", "Ajouter", "Add"],
+  contactsAdded: ["أُضيف", "Ajoutés", "Added"],
+  contactsSkipped: ["لم يُضف", "Non ajoutés", "Not added"],
+  // cash book
+  cash: ["الصندوق", "Caisse", "Cash book"],
+  cashHelp: [
+    "ما يدخل ويخرج من الصندوق بدون دين: المبيعات نقداً، المصاريف، المشتريات. التسديدات النقدية للديون تُحسب وحدها.",
+    "Ce qui entre et sort de la caisse sans être une dette : ventes au comptant, dépenses, achats. Les remboursements en espèces des dettes y sont comptés d’eux-mêmes.",
+    "What goes in and out of the drawer without being a debt: cash sales, expenses, purchases. Cash repayments of debts are counted by themselves.",
+  ],
+  cashIn: ["دخل", "Entrées", "In"],
+  cashOut: ["خرج", "Sorties", "Out"],
+  cashAtHand: ["في الصندوق", "En caisse", "Cash at hand"],
+  cashAtHandHelp: [
+    "منذ آخر «رصيد بداية» (عدّ الصندوق): كل ما دخل ناقص كل ما خرج، إلى نهاية هذا اليوم.",
+    "Depuis le dernier « fonds de caisse » (caisse comptée) : tout ce qui est entré moins tout ce qui est sorti, jusqu’à la fin de ce jour.",
+    "Since the last “opening cash” (drawer counted): everything in, less everything out, up to the end of this day.",
+  ],
+  cashNoOpening: [
+    "عدّ ما في الصندوق وسجّله «رصيد البداية» لترى ما في الصندوق.",
+    "Comptez la caisse et enregistrez-la en « fonds de caisse » pour voir ce qu’il y a en caisse.",
+    "Count the drawer and record it as “opening cash” to see the cash at hand.",
+  ],
+  cashToday: ["اليوم", "Aujourd’hui", "Today"],
+  cashPrev: ["اليوم السابق", "Jour précédent", "Previous day"],
+  cashNext: ["اليوم التالي", "Jour suivant", "Next day"],
+  cashEmpty: ["لا شيء في هذا اليوم.", "Rien ce jour-là.", "Nothing on this day."],
+  cashNew: ["إضافة في الصندوق", "Ajouter à la caisse", "Add to the cash book"],
+  cashKind: ["النوع", "Type", "Type"],
+  k_opening: ["رصيد البداية", "Fonds de caisse", "Opening cash"],
+  k_sale: ["بيع نقداً", "Vente au comptant", "Cash sale"],
+  k_income: ["دخل آخر", "Autre entrée", "Other income"],
+  k_deposit: ["إيداع في الصندوق", "Apport", "Money put in"],
+  k_expense: ["مصروف", "Dépense", "Expense"],
+  k_purchase: ["شراء سلعة", "Achat de marchandise", "Stock purchase"],
+  k_withdrawal: ["سحب من الصندوق", "Retrait", "Money taken out"],
+  k_repayment: ["تسديد دين نقداً", "Remboursement en espèces", "Cash repayment"],
+  category: ["البيان", "Libellé", "Label"],
+  categoryHint: ["مثلاً: كراء، كهرباء، سلعة", "Ex. : loyer, électricité, marchandise", "E.g. rent, electricity, goods"],
+  cashVoid: ["إلغاء القيد", "Annuler l’écriture", "Cancel entry"],
+  cashVoidAsk: ["يبقى القيد ظاهراً كملغى ولا يُحسب.", "L’écriture reste visible comme annulée et ne compte plus.", "The entry stays visible as cancelled and no longer counts."],
+  cashVoided: ["ملغى", "Annulée", "Cancelled"],
+  cashMonth: ["هذا الشهر", "Ce mois-ci", "This month"],
+  cashByLabel: ["حسب البيان", "Par libellé", "By label"],
+  cashExport: ["تصدير الصندوق (CSV)", "Exporter la caisse (CSV)", "Export the cash book (CSV)"],
+  cashOnCredit: ["بيع بالدين اليوم", "Ventes à crédit ce jour", "Sold on credit this day"],
+  cashOpenPerson: ["فتح الشخص", "Ouvrir la personne", "Open the person"],
   // directions
   owedToMe: ["مستحق لك", "On me doit", "Owed to me"],
   iOwe: ["مستحق عليك", "Je dois", "I owe"],
@@ -512,6 +606,10 @@ export function translate(lang: Lang, key: Key): string {
 
 // Error codes from the core → readable messages.
 const E: Record<string, [string, string, string]> = {
+  invalid_cash_kind: ["نوع غير معروف في الصندوق.", "Type de caisse inconnu.", "Unknown cash book type."],
+  cash_not_found: ["هذا القيد لم يعد موجوداً.", "Cette écriture n’existe plus.", "This entry no longer exists."],
+  already_voided: ["أُلغي هذا القيد من قبل.", "Cette écriture est déjà annulée.", "This entry is already cancelled."],
+  staff_not_allowed: ["غير مسموح في وضع العامل. اطلب من صاحب المحل.", "Pas permis en mode employé. Demandez au patron.", "Not allowed in staff mode. Ask the owner."],
   name_required: ["الاسم مطلوب.", "Le nom est obligatoire.", "A name is required."],
   amount_positive: ["أدخل مبلغاً أكبر من صفر.", "Saisissez un montant supérieur à zéro.", "Enter an amount above zero."],
   future_date: ["لا يمكن أن يكون التاريخ في المستقبل.", "La date ne peut pas être dans le futur.", "The date cannot be in the future."],
@@ -658,6 +756,8 @@ const AUDIT: Record<string, Tr> = {
   "import.reverse": ["إلغاء استيراد", "Import annulé", "Import undone"],
   "attachment.add": ["إضافة مرفق", "Pièce jointe ajoutée", "Attachment added"],
   "attachment.remove": ["حذف مرفق", "Pièce jointe retirée", "Attachment removed"],
+  "cash.add": ["قيد في الصندوق", "Écriture de caisse", "Cash book entry"],
+  "cash.void": ["إلغاء قيد في الصندوق", "Écriture de caisse annulée", "Cash book entry cancelled"],
 };
 
 /** Readable label for an audit action code such as "party.merge". */
@@ -681,6 +781,7 @@ const STORES: Record<string, Tr> = {
   attachments: ["مرفقات", "Pièces jointes", "Attachments"],
   audit: ["سجل التدقيق", "Journal d’audit", "Audit log"],
   importBatches: ["عمليات استيراد", "Imports", "Imports"],
+  cashEntries: ["قيود الصندوق", "Écritures de caisse", "Cash book entries"],
 };
 
 /** Readable name for a record type ("parties" → "Personnes"). */

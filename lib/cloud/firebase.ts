@@ -99,8 +99,11 @@ export class FirebaseCloud {
   private app: FirebaseApp;
   private auth: Auth;
   private db: Firestore;
+  private emulator: CloudConfig["emulator"];
+  private liveConnected = false;
 
   constructor(c: CloudConfig, opts: { name?: string; memory?: boolean } = {}) {
+    this.emulator = c.emulator;
     this.app = initializeApp({ apiKey: c.apiKey, authDomain: c.authDomain, projectId: c.projectId, appId: c.appId }, opts.name ?? "nsalek");
     this.auth = initializeAuth(this.app, opts.memory ? { persistence: inMemoryPersistence } : { persistence: [indexedDBLocalPersistence, browserLocalPersistence], popupRedirectResolver: browserPopupRedirectResolver });
     this.db = getFirestore(this.app);
@@ -112,6 +115,27 @@ export class FirebaseCloud {
 
   close() {
     return deleteApp(this.app);
+  }
+
+  /**
+   * Told within seconds when the account's copy changes (another phone saved), with its version.
+   * One read when it starts and one per change, never a regular polling. The full Firestore SDK
+   * is downloaded only for this, only for a signed-in phone.
+   */
+  async watchHead(cb: (versionId: string | null) => void, onError: () => void = () => undefined): Promise<() => void> {
+    const uid = this.user().uid;
+    const fs = await import("firebase/firestore");
+    fs.setLogLevel("silent");
+    const live = fs.getFirestore(this.app);
+    if (this.emulator && !this.liveConnected) {
+      fs.connectFirestoreEmulator(live, this.emulator.host, this.emulator.firestore);
+      this.liveConnected = true;
+    }
+    return fs.onSnapshot(
+      fs.doc(live, "users", uid),
+      (s) => cb(s.exists() ? String(s.get("versionId") ?? "") || null : null),
+      () => onError(), // a listener stops after an error: the caller starts a new one later
+    );
   }
 
   // -------------------------------------------------------------- account

@@ -1,6 +1,8 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, BellRing, FileText, HandCoins, MessageCircle, MoreHorizontal, Phone, Plus, Search, UserPlus, Users } from "lucide-react";
+import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, BellRing, BookUser, FileText, HandCoins, MessageCircle, MoreHorizontal, Phone, Plus, Search, UserPlus, Users } from "lucide-react";
+import { ContactsImport } from "./Contacts";
+import { BalanceLinkButton } from "./BalanceShare";
 import { useApp } from "@/lib/ui/state";
 import { useSheet } from "@/lib/ui/sheets";
 import { Avatar, DirectionIcon, useAsk, Empty, Money, Seg, StatusChip, displayPhone, go, readFileAttachment } from "@/lib/ui/components";
@@ -31,6 +33,7 @@ export function PeopleList() {
   const { idx, today, t, ws } = useApp();
   const open = useSheet();
   const [q, setQ] = useState("");
+  const [importing, setImporting] = useState(false);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [tag, setTag] = useState("");
   const [limit, setLimit] = useState(60);
@@ -61,10 +64,16 @@ export function PeopleList() {
     <div className="stack">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-[22px] font-bold">{t("people")}</h1>
-        <button className="btn btn-sm" onClick={() => open({ kind: "party" })}>
-          <UserPlus size={16} /> {t("newPerson")}
-        </button>
+        <div className="flex gap-2">
+          <button className="btn btn-sm" onClick={() => setImporting((x) => !x)} aria-expanded={importing}>
+            <BookUser size={16} /> {t("contacts")}
+          </button>
+          <button className="btn btn-sm" onClick={() => open({ kind: "party" })}>
+            <UserPlus size={16} /> {t("newPerson")}
+          </button>
+        </div>
       </div>
+      {importing && <ContactsImport onClose={() => setImporting(false)} />}
       <div className="relative">
         <Search size={18} className="muted pointer-events-none absolute top-[14px]" style={{ insetInlineStart: 12 }} />
         <input className="input" style={{ paddingInlineStart: 38 }} placeholder={t("searchPeople")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("searchPeople")} type="search" />
@@ -247,7 +256,7 @@ export function PersonPage({ partyId }: { partyId: string }) {
               </div>
             )}
           </div>
-          <PartyMenu partyId={party.id} />
+          {!app.meta?.staffMode && <PartyMenu partyId={party.id} />}
         </div>
         <div className="mt-4 grid gap-2">
           {currencies.length === 0 && <p className="chip chip-owed w-fit">{t("settled")}</p>}
@@ -327,6 +336,7 @@ export function PersonPage({ partyId }: { partyId: string }) {
           <button className="btn btn-sm" disabled={!hasReceivable} onClick={() => open({ kind: "promise", partyId: party.id })}>
             {t("promise")}
           </button>
+          {currencies.length > 0 && <BalanceLinkButton partyId={party.id} />}
         </div>
       </section>
 

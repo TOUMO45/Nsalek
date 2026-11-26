@@ -149,7 +149,7 @@ export function signature(data: LedgerData): string | null {
     for (const r of data[s] as { id: string; workspaceId?: string }[]) if (s === "workspaces" ? real.has(r.id) : real.has(r.workspaceId!)) n++;
     parts.push(n);
     rows += n;
-    if (s === "parties" || s === "obligations" || s === "payments" || s === "notes" || s === "recurringPlans" || s === "invoices") content += n;
+    if (s === "parties" || s === "obligations" || s === "payments" || s === "notes" || s === "recurringPlans" || s === "invoices" || s === "cashEntries") content += n;
   }
   if (!content) return null;
   let last = "";
@@ -215,7 +215,7 @@ export async function makeCopy(data: LedgerData, opts: { now: Date; device: stri
     enc: gzip ? "gzip" : "none",
     sha: await sha256Hex(bytes),
     people: String(opened.parties.filter((p) => !p.mergedIntoId).length),
-    entries: String(counts.obligations + counts.payments),
+    entries: String(counts.obligations + counts.payments + counts.cashEntries),
     photos: String(counts.attachments),
     records: String(Object.values(counts).reduce((n, c) => n + c, 0)),
     audit: String(counts.audit),

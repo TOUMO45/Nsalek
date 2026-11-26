@@ -76,7 +76,7 @@ const DAY = 86_400_000;
  */
 export function backupStatus(data: LedgerData, lastBackupAt: string | null | undefined, now: Date, cloudAt?: string | null): BackupStatus {
   const real = new Set(realIds(data));
-  const hasData = data.parties.some((p) => real.has(p.workspaceId)) || data.obligations.some((o) => real.has(o.workspaceId));
+  const hasData = data.parties.some((p) => real.has(p.workspaceId)) || data.obligations.some((o) => real.has(o.workspaceId)) || data.cashEntries.some((c) => real.has(c.workspaceId));
   if (!hasData) return { level: "none", changes: 0, days: null };
   let changes = 0;
   let first: string | null = null;

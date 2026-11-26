@@ -1,6 +1,8 @@
 "use client";
 import { useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Copy, Mail, MessageCircle, Smartphone } from "lucide-react";
+import { BookUser, ChevronDown, ChevronUp, Copy, Mail, MessageCircle, Smartphone } from "lucide-react";
+import { canPickContacts, pickContacts } from "./Contacts";
+import { useBalanceLink } from "./BalanceShare";
 import { VoiceSheet } from "./Voice";
 import { useApp, newCommandId } from "@/lib/ui/state";
 import type { SheetSpec } from "@/lib/ui/sheets";
@@ -555,6 +557,20 @@ function PartySheet({ partyId, onClose }: { partyId?: string; onClose: () => voi
     <Sheet title={existing ? t("editPerson") : t("newPerson")} onClose={onClose}>
       <form onSubmit={save} className="stack" noValidate>
         <Seg value={f.kind} onChange={(kind) => set({ kind })} options={[{ value: "person", label: t("kindPerson") }, { value: "organization", label: t("kindOrg") }]} />
+        {!existing && canPickContacts() && (
+          <button
+            type="button"
+            className="btn btn-sm w-fit"
+            onClick={() =>
+              pickContacts(false).then(
+                ([c]) => c && set({ displayName: c.name, phone1: c.phones[0] ?? "", phone2: c.phones[1] ?? "", email: c.email || f.email }),
+                () => undefined,
+              )
+            }
+          >
+            <BookUser size={16} /> {t("fromContacts")}
+          </button>
+        )}
         <Field label={t("displayName")} help={t("displayNameHelp")} htmlFor="p-name">
           <input id="p-name" className="input" value={f.displayName} onChange={(e) => set({ displayName: e.target.value })} maxLength={120} autoFocus />
         </Field>
@@ -955,18 +971,23 @@ export function ReminderComposer({ partyId, onDone, compact = false }: { partyId
   const draft = useMemo(() => reminderMessage(msgLang, { name: party.displayName, amounts, business: ws!.business.name || ws!.name }), [msgLang, party.displayName, ws, amounts]);
   const [message, setMessage] = useState<string | null>(null);
   const [logged, setLogged] = useState<string | null>(null);
+  const [withLink, setWithLink] = useState(false);
+  const link = useBalanceLink(partyId, msgLang, withLink);
   const text = message ?? draft;
+  // The link is long: the log keeps the words and notes that the link went with them.
+  const sent = withLink && link ? `${text}\n\n${link}` : text;
   const phone = party.phones[0];
   const wa = phone ? whatsappDigits(phone) : null;
   const ios = typeof navigator !== "undefined" && /iPhone|iPad/i.test(navigator.userAgent);
   const share = async (channel: "whatsapp" | "sms" | "email" | "copy") => {
     try {
-      const r = await run<{ reminderId: string }>("logReminder", { workspaceId: ws!.id, partyId, channel, language: msgLang, message: text, status: channel === "copy" ? "prepared" : "opened_for_sharing", expectedAmounts: amounts });
+      const logText = withLink && link ? `${text}\n[+ ${t("balanceLink")}]` : text;
+      const r = await run<{ reminderId: string }>("logReminder", { workspaceId: ws!.id, partyId, channel, language: msgLang, message: logText, status: channel === "copy" ? "prepared" : "opened_for_sharing", expectedAmounts: amounts });
       setLogged(r.reminderId);
       if (channel === "copy") {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(sent);
         toast(t("copy") + " ✓");
-      } else window.open(shareUrl(channel, channel === "whatsapp" ? wa! : channel === "sms" ? phone! : party.email, text, ios), "_blank", "noopener");
+      } else window.open(shareUrl(channel, channel === "whatsapp" ? wa! : channel === "sms" ? phone! : party.email, sent, ios), "_blank", "noopener");
     } catch (e) {
       toast(errorMessage(lang, e));
     }
@@ -990,6 +1011,9 @@ export function ReminderComposer({ partyId, onDone, compact = false }: { partyId
         </select>
       </div>
       <textarea className="input min-h-[140px]" dir={msgLang === "ar" ? "rtl" : "ltr"} value={text} onChange={(e) => setMessage(e.target.value)} aria-label={t("remind")} />
+      <label className="flex items-center gap-2 text-[14px]">
+        <input type="checkbox" className="h-5 w-5" checked={withLink} onChange={(e) => setWithLink(e.target.checked)} /> {t("balanceLinkAdd")}
+      </label>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <button type="button" className="btn btn-sm" disabled={!wa} onClick={() => share("whatsapp")}>
           <MessageCircle size={16} /> {t("whatsapp")}

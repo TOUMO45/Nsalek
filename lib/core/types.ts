@@ -145,6 +145,29 @@ export type Adjustment = {
 
 export type PaymentMethod = "cash" | "bank_transfer" | "ccp_baridimob" | "card" | "other";
 
+/** Cash book: money that comes in or goes out without being a debt. Never edited: cancelled with a reason. */
+export type CashKind = "opening" | "sale" | "income" | "deposit" | "expense" | "purchase" | "withdrawal";
+export const CASH_IN: readonly CashKind[] = ["opening", "sale", "income", "deposit"];
+export const CASH_OUT: readonly CashKind[] = ["expense", "purchase", "withdrawal"];
+
+export type CashEntry = {
+  id: string;
+  workspaceId: string;
+  date: ISODate;
+  direction: "in" | "out";
+  kind: CashKind;
+  amount: Minor;
+  currency: CurrencyCode;
+  /** Free words: "loyer", "électricité", "marchandise"... */
+  category: string;
+  note: string;
+  method: PaymentMethod;
+  voidedAt: ISOTime | null;
+  voidReason: string | null;
+  createdAt: ISOTime;
+  createdBy: string;
+};
+
 export type Payment = {
   id: string;
   workspaceId: string;
@@ -386,6 +409,8 @@ export type MetaRecord = {
   drive?: DriveMeta | null;
   /** A new mark each time an account leaves this phone: what other tabs have begun with it must not go on. */
   cloudStop?: string | null;
+  /** The phone is in an employee's hands (lib/core/staff.ts); only the owner's PIN ends it. */
+  staffMode?: boolean;
 };
 
 /** `bytes` is used only by the copy shared with the cloud, which no person sees. */
@@ -408,6 +433,7 @@ export type RowMap = {
   attachments: Attachment;
   audit: AuditEvent;
   importBatches: ImportBatch;
+  cashEntries: CashEntry;
   commands: CommandRecord;
   snapshots: SnapshotRecord;
 };
@@ -431,6 +457,7 @@ export const DATA_STORES = [
   "attachments",
   "audit",
   "importBatches",
+  "cashEntries",
 ] as const satisfies readonly StoreName[];
 
 export type DataStore = (typeof DATA_STORES)[number];
@@ -456,6 +483,7 @@ export const emptyLedger = (): LedgerData => ({
   attachments: [],
   audit: [],
   importBatches: [],
+  cashEntries: [],
 });
 
 export class DomainError extends Error {

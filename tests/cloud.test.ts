@@ -6,7 +6,7 @@ import { pack, unpack, fingerprint } from "../lib/cloud/bundle.ts";
 import { threeWay } from "../lib/cloud/merge.ts";
 import { CloudError, type CloudPort, type Head, type Save, type Version } from "../lib/cloud/port.ts";
 import { claimPhone, everythingSaved, forgetAccount, removeForeign, removeSaved, restoreVersion, syncOnce, versionsToDrop, wipePhone, type About, type Choice } from "../lib/cloud/sync.ts";
-import { createBackup, validateLedger } from "../lib/core/backup.ts";
+import { createBackup, SCHEMA_VERSION, validateLedger } from "../lib/core/backup.ts";
 import { restoreBackup } from "../lib/core/restore.ts";
 import { backupStatus } from "../lib/core/quickBackup.ts";
 import { partyBalance } from "../lib/core/ledger.ts";
@@ -480,7 +480,7 @@ test("a whole copy with an impossible ledger is refused", async () => {
 
 test("an older app does not write over a newer format", async () => {
   const { cloud, a, n } = await twoPhones();
-  cloud.h!.versions[0].schemaVersion = 2;
+  cloud.h!.versions[0].schemaVersion = SCHEMA_VERSION + 1;
   cloud.h!.rev = 2;
   cloud.h!.versions[0].sha = "other";
   await pay(a, n, 10);

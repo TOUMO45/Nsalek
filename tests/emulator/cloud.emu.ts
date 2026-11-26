@@ -306,3 +306,25 @@ test("a year of a shop is sent in one piece", async () => {
   assert.ok(size < PART_BYTES, String(size));
   assert.equal((await one.sync()).kind, "saved");
 });
+
+test("a phone hears within seconds that another phone saved, and not its own save", async () => {
+  const p = await person();
+  const a = phone(p);
+  const n = await notebook(a);
+  await a.sync();
+  // The second phone: the same account signed in on another device.
+  const other = client();
+  await other.signIn(p.email, PASS);
+  const heard: (string | null)[] = [];
+  const stop = await other.watchHead((v) => heard.push(v));
+  await pause(1500);
+  const first = heard.length;
+  assert.ok(first >= 1, "the current version arrives when listening starts");
+  await pay(a, n, 10);
+  await a.sync();
+  const start = Date.now();
+  while (heard.length === first && Date.now() - start < 8000) await pause(200);
+  assert.ok(heard.length > first, "the new save is heard");
+  assert.notEqual(heard.at(-1), heard[first - 1], "with its new version");
+  stop();
+});

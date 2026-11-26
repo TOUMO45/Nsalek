@@ -12,7 +12,7 @@
     "public": "out",
     "predeploy": ["node scripts/check-release.mjs"],
     "cleanUrls": true,
-    "ignore": ["firebase.json", "**/.*", "sample-statement*", "sample-statement/**"],
+    "ignore": ["firebase.json", "**/.!(well-known)", "**/.!(well-known)/**", "sample-statement*", "sample-statement/**"],
     "headers": [
       {
         "source": "**",

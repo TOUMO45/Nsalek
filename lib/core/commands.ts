@@ -16,11 +16,13 @@ import { isCurrency, isPositiveMinor, isValidMinor } from "./money.ts";
 import { occurrencesUntil } from "./recurrence.ts";
 import type { Store, Tx } from "./store.ts";
 import { normalizePhone } from "./text.ts";
+import { STAFF, staffMay } from "./staff.ts";
 import {
   check,
   fail,
   type Adjustment,
   type AdjustmentType,
+  type CashEntry,
   type Allocation,
   type AuditEvent,
   type Direction,
@@ -1122,6 +1124,47 @@ handlers.voidInvoice = async (ctx, p) => {
   return { invoiceId: inv.id };
 };
 
+// ---------------------------------------------------------------- cash book
+
+const CASH_KINDS = ["opening", "sale", "income", "deposit", "expense", "purchase", "withdrawal"] as const;
+const CASH_IN_KINDS: readonly string[] = ["opening", "sale", "income", "deposit"];
+
+handlers.addCashEntry = async (ctx, p) => {
+  const ws = await workspace(ctx, p.workspaceId);
+  const kind = oneOf(p.kind, CASH_KINDS, "invalid_cash_kind");
+  const entry: CashEntry = {
+    id: `cash_${ctx.commandId}`,
+    workspaceId: ws.id,
+    date: p.date ? isoDate(p.date) : todayOf(ctx, ws),
+    direction: CASH_IN_KINDS.includes(kind) ? "in" : "out",
+    kind,
+    amount: positive(p.amount),
+    currency: currencyOf(p.currency ?? ws.defaultCurrency),
+    category: text(p.category, 60),
+    note: text(p.note, 300),
+    method: oneOf(p.method ?? "cash", METHODS, "invalid_method"),
+    voidedAt: null,
+    voidReason: null,
+    createdAt: ctx.now,
+    createdBy: ctx.actor,
+  };
+  check(entry.date <= todayOf(ctx, ws), "future_date");
+  await add(ctx, "cashEntries", entry);
+  await audit(ctx, { workspaceId: ws.id, action: "cash.add", entityType: "cash", entityId: entry.id, after: { kind, amount: entry.amount, currency: entry.currency, date: entry.date } });
+  return { cashEntryId: entry.id };
+};
+
+handlers.voidCashEntry = async (ctx, p) => {
+  const entry = await ctx.tx.get("cashEntries", idOf(p.cashEntryId));
+  check(entry, "cash_not_found");
+  await workspace(ctx, entry.workspaceId);
+  check(!entry.voidedAt, "already_voided");
+  const next: CashEntry = { ...entry, voidedAt: ctx.now, voidReason: required(p.reason, 300, "reason_required") };
+  await put(ctx, "cashEntries", next);
+  await audit(ctx, { workspaceId: entry.workspaceId, action: "cash.void", entityType: "cash", entityId: entry.id, before: { amount: entry.amount }, after: { reason: next.voidReason } });
+  return { cashEntryId: entry.id };
+};
+
 handlers.addNote = async (ctx, p) => {
   const ws = await workspace(ctx, p.workspaceId);
   const note = { id: `note_${ctx.commandId}`, workspaceId: ws.id, text: required(p.text, 2000, "text_required"), convertedTo: null, archivedAt: null, createdAt: ctx.now };
@@ -1327,8 +1370,11 @@ export async function execute<T = Record<string, unknown>>(store: Store, cmd: Co
       check(done.type === cmd.type, "command_id_reused");
       return { result: done.result as T, replayed: true, writes: [] };
     }
+    // Staff mode is read here, in the same transaction, whatever the screen shows or says.
+    const staff = cmd.actor === STAFF || !!(await tx.get("meta", "app"))?.staffMode;
+    if (staff) check(staffMay(cmd.type), "staff_not_allowed");
     const at = clock();
-    const ctx: Ctx = { tx, now: at.toISOString(), clock: at, actor: cmd.actor ?? "owner", commandId, writes: [], seq: 0 };
+    const ctx: Ctx = { tx, now: at.toISOString(), clock: at, actor: staff ? STAFF : (cmd.actor ?? "owner"), commandId, writes: [], seq: 0 };
     const result = await handler(ctx, cmd.payload ?? {});
     await tx.add("commands", { id: commandId, type: cmd.type, at: ctx.now, result });
     return { result: result as T, replayed: false, writes: ctx.writes };

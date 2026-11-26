@@ -279,6 +279,43 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     if (!running.current) settle(); // else when the round ends
   }, [data, uid, settle]);
 
+  // Another phone saved: the change comes within seconds instead of at the next regular check.
+  const knownVersion = meta?.cloud?.link?.versionId ?? null;
+  const knownRef = useRef(knownVersion);
+  useEffect(() => {
+    knownRef.current = knownVersion;
+  }, [knownVersion]);
+  const [listen, setListen] = useState(0);
+  useEffect(() => {
+    if (!uid || !store) return;
+    let stop: (() => void) | undefined;
+    let gone = false;
+    let soon: ReturnType<typeof setTimeout> | undefined;
+    let again: ReturnType<typeof setTimeout> | undefined;
+    const restart = () => {
+      if (!gone) again = setTimeout(() => setListen((n) => n + 1), 30_000);
+    };
+    openFirebase()
+      .then((c) =>
+        c.watchHead((versionId) => {
+          if (!versionId || versionId === knownRef.current) return;
+          clearTimeout(soon);
+          // Checked again when it fires: by then this phone's own save is known, and is not news.
+          soon = setTimeout(() => versionId !== knownRef.current && !document.hidden && void round.current(), 1500);
+        }, restart),
+      )
+      .then(
+        (s) => (gone ? s() : (stop = s)),
+        restart,
+      );
+    return () => {
+      gone = true;
+      clearTimeout(soon);
+      clearTimeout(again);
+      stop?.();
+    };
+  }, [uid, store, listen]);
+
   // Back online, back in the app, or leaving it.
   useEffect(() => {
     if (!uid) return;

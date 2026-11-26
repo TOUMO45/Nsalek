@@ -18,6 +18,7 @@ export const INDEXES: Partial<Record<StoreName, string[]>> = {
   attachments: ["workspaceId", "ownerId"],
   audit: ["workspaceId"],
   importBatches: ["workspaceId"],
+  cashEntries: ["workspaceId"],
 };
 
 export interface Tx {

@@ -232,7 +232,7 @@ function DebtSheet({ spec, onClose }: { spec: Extract<SheetSpec, { kind: "debt" 
                   [addDays(date, 7), t("in7")],
                   [addDays(date, 30), t("in30")],
                 ].map(([v, l]) => (
-                  <button key={l} type="button" className="chip" style={dueDate === v ? { background: "var(--ink)", color: "var(--paper)", minHeight: 30 } : { minHeight: 30 }} onClick={() => setDueDate(v)}>
+                  <button key={l} type="button" className="chip" style={dueDate === v ? { background: "var(--brand)", color: "var(--brand-ink)", borderColor: "transparent", minHeight: 30 } : { minHeight: 30 }} onClick={() => setDueDate(v)}>
                     {l}
                   </button>
                 ))}
@@ -408,7 +408,7 @@ function PaymentSheet({ spec, onClose }: { spec: Extract<SheetSpec, { kind: "pay
         <Field label={t("method")} help={t("methodNote")}>
           <div className="flex flex-wrap gap-1.5">
             {METHODS.map((m) => (
-              <button key={m} type="button" className="chip" style={method === m ? { background: "var(--ink)", color: "var(--paper)", minHeight: 32 } : { minHeight: 32 }} onClick={() => setMethod(m)}>
+              <button key={m} type="button" className="chip" style={method === m ? { background: "var(--brand)", color: "var(--brand-ink)", borderColor: "transparent", minHeight: 32 } : { minHeight: 32 }} onClick={() => setMethod(m)}>
                 {t(`m_${m}` as never)}
               </button>
             ))}

@@ -14,6 +14,7 @@ import {
   Import,
   Info,
   Lock,
+  UserRound,
   NotebookPen,
   Receipt,
   Repeat,
@@ -30,6 +31,9 @@ import { CURRENCIES, parseAmount, toInputValue } from "@/lib/core/money";
 import { brand } from "@/lib/brand";
 import { seedDemo } from "@/lib/demo";
 import { Backup } from "./Backup";
+import { AccountPage } from "./Account";
+import { useCloud } from "@/lib/ui/cloud";
+import { accountText } from "@/lib/ui/accountText";
 import { useBackupStatus } from "./useQuickBackup";
 import { Invoices, Notes, Recurring } from "./Business";
 import { CsvPage, LegacyImportPage } from "./ImportExport";
@@ -38,10 +42,12 @@ import { Help } from "./Help";
 export function MorePage({ section, sub }: { section?: string; sub?: string }) {
   const { t, lang, ws } = useApp();
   const status = useBackupStatus();
+  const cloud = useCloud();
   const unsaved = status.level === "due" || status.level === "urgent";
   if (!section) {
     const Chevron = lang === "ar" ? ChevronLeft : ChevronRight;
     const items: [string, string, React.ReactNode, boolean?][] = [
+      ["account", accountText(lang, "title"), <UserRound key="i" size={20} />, !cloud.available],
       ["reports", t("reports"), <BarChart3 key="i" size={20} />],
       ["statements", t("statements"), <FileText key="i" size={20} />],
       ["invoices", t("invoices"), <Receipt key="i" size={20} />, ws?.mode !== "business" && !ws?.settings.invoices.enabled],
@@ -82,6 +88,8 @@ export function MorePage({ section, sub }: { section?: string; sub?: string }) {
   );
   const page = (() => {
     switch (section) {
+      case "account":
+        return <AccountPage />;
       case "reports":
         return <Reports />;
       case "statements":
@@ -530,29 +538,29 @@ function About() {
   const items =
     lang === "ar"
       ? [
-          "تعمل بدون حساب وبدون إنترنت؛ تُحفظ البيانات في IndexedDB على هذا المتصفح.",
+          "تعمل بدون حساب وبدون إنترنت؛ تُحفظ البيانات في IndexedDB على هذا المتصفح. بحساب اختياري تُحفظ نسخة على الإنترنت.",
           "يمكن للمتصفح حذف البيانات إذا مُسحت بيانات الموقع أو امتلأت الذاكرة: احتفظ بنسخ احتياطية.",
           "التنبيهات تظهر عند فتح التطبيق فقط، ولا يوجد إرسال تلقائي للرسائل.",
           "واتساب/SMS: يُفتح تطبيقك للمراجعة؛ لا نسجّل «وصل» أبداً.",
           "قفل PIN شاشة خصوصية وليس تشفيراً. النسخ الاحتياطية يمكن تشفيرها بـ AES-GCM.",
-          "لا مزامنة سحابية، ولا فرق، ولا ذكاء اصطناعي في هذه النسخة.",
+          "النسخة السحابية لا تشمل الصور، وليست مشاركة فورية بين عدة أشخاص. لا ذكاء اصطناعي في هذه النسخة.",
         ]
       : lang === "fr"
         ? [
-            "Fonctionne sans compte ni internet ; les données sont dans IndexedDB de ce navigateur.",
+            "Fonctionne sans compte ni internet ; les données sont dans IndexedDB de ce navigateur. Avec un compte facultatif, une copie est gardée en ligne.",
             "Le navigateur peut effacer les données (effacement du site, espace plein) : gardez des sauvegardes.",
             "Les notifications s’affichent à l’ouverture de l’application ; aucun envoi automatique de message.",
             "WhatsApp/SMS : votre application s’ouvre pour relecture ; jamais de statut « distribué ».",
             "Le verrou PIN est un écran de confidentialité, pas un chiffrement. Les sauvegardes peuvent être chiffrées (AES-GCM).",
-            "Pas de synchronisation cloud, d’équipe ni d’IA dans cette version.",
+            "La copie en ligne ne contient pas les photos et n’est pas un partage en direct entre plusieurs personnes. Pas d’IA dans cette version.",
           ]
         : [
-            "Works without an account or internet; data lives in this browser’s IndexedDB.",
+            "Works without an account or internet; data lives in this browser’s IndexedDB. With an optional account, a copy is kept online.",
             "The browser may clear data (site data cleared, low space): keep backups.",
             "Notifications appear when the app is opened; no automatic message sending.",
             "WhatsApp/SMS: your own app opens for review; never marked “delivered”.",
             "The PIN lock is a privacy screen, not encryption. Backups can be encrypted (AES-GCM).",
-            "No cloud sync, teams or AI in this version.",
+            "The cloud copy leaves out photos and is not live sharing between several people. No AI in this version.",
           ];
   return (
     <>

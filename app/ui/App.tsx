@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, CalendarClock, Eye, EyeOff, Home as HomeIcon, Lock, Menu, Mic, Plus, Users, WifiOff } from "lucide-react";
 import { AppProvider, useApp } from "@/lib/ui/state";
+import { CloudProvider, useCloud } from "@/lib/ui/cloud";
+import { accountText } from "@/lib/ui/accountText";
 import { SheetContext, useSheet, type SheetSpec } from "@/lib/ui/sheets";
 import { AskProvider, Toast, go, useOnline, useRoute } from "@/lib/ui/components";
 import { verifyPin } from "@/lib/core/crypto";
@@ -12,6 +14,10 @@ import { timeIn } from "@/lib/core/dates";
 import { brand } from "@/lib/brand";
 import { seedDemo } from "@/lib/demo";
 import { RestoreCard } from "./Backup";
+import { DriveRestore } from "./Drive";
+import { DriveProvider, useDrive } from "@/lib/ui/drive";
+import { driveText } from "@/lib/ui/driveText";
+import { CloudButton, FirstSignIn } from "./Account";
 import { useBackupStatus } from "./useQuickBackup";
 import { Home } from "./Home";
 import { PeopleList, PersonPage } from "./People";
@@ -23,7 +29,11 @@ import { StatementPage, ReceiptPage, InvoicePrintPage } from "./Statement";
 export default function App() {
   return (
     <AppProvider>
-      <Root />
+      <CloudProvider>
+        <DriveProvider>
+          <Root />
+        </DriveProvider>
+      </CloudProvider>
     </AppProvider>
   );
 }
@@ -114,8 +124,10 @@ function Shell() {
     <div className={printOnly ? "" : "shell"}>
       {!printOnly && (
         <aside className="sidebar no-print" aria-label="navigation">
-          <div className="mb-4 flex items-center gap-2 px-2">
-            <BookOpen className="owed" size={24} aria-hidden />
+          <div className="mb-4 flex items-center gap-2.5 px-2">
+            <span className="brand-mark">
+              <BookOpen size={19} aria-hidden />
+            </span>
             <div>
               <p className="font-bold leading-tight">{prefs.lang === "ar" ? brand.nameAr : brand.name}</p>
               <p className="help leading-tight">{ws?.name}</p>
@@ -134,9 +146,14 @@ function Shell() {
       <div>
         {!printOnly && (
           <header className="topbar no-print">
+            <span className="lg:hidden">
+              <span className="brand-mark">
+                <BookOpen size={18} aria-hidden />
+              </span>
+            </span>
             <div className="min-w-0 flex-1 lg:hidden">
               <p className="truncate font-bold leading-tight">{ws?.name}</p>
-              {ws?.demo && <p className="help leading-tight">{t("demoBanner")}</p>}
+              <p className="help truncate leading-tight">{ws?.demo ? t("demoBanner") : prefs.lang === "ar" ? brand.nameAr : brand.name}</p>
             </div>
             <div className="hidden flex-1 lg:block">{ws?.demo && <span className="chip chip-soon">{t("demoBanner")}</span>}</div>
             {!online && (
@@ -144,6 +161,7 @@ function Shell() {
                 <WifiOff size={14} /> <span className="hidden sm:inline">{t("offline")}</span>
               </span>
             )}
+            <CloudButton />
             <button className="icon-btn" onClick={() => setSheet({ kind: "voice" })} aria-label={t("voice")} title={t("voice")}>
               <Mic size={20} />
             </button>
@@ -164,11 +182,11 @@ function Shell() {
       {!printOnly && (
         <nav className="bottomnav no-print" aria-label="navigation">
           <a href="#/" aria-current={top === "" ? "page" : undefined}>
-            {nav[0].icon}
+            <span className="nav-pill">{nav[0].icon}</span>
             {nav[0].label}
           </a>
           <a href="#/people" aria-current={top === "people" ? "page" : undefined}>
-            {nav[1].icon}
+            <span className="nav-pill">{nav[1].icon}</span>
             {nav[1].label}
           </a>
           <button onClick={() => setSheet({ kind: "debt", direction: "receivable" })} aria-label={t("add")}>
@@ -178,13 +196,13 @@ function Shell() {
             {t("add")}
           </button>
           <a href="#/due" aria-current={top === "due" ? "page" : undefined}>
-            {nav[2].icon}
+            <span className="nav-pill">{nav[2].icon}</span>
             {nav[2].label}
           </a>
           <a href="#/more" aria-current={top === "more" ? "page" : undefined}>
-            <span className="relative">
+            <span className="nav-pill relative">
               {nav[3].icon}
-              {backupLevel === "urgent" && <span className="nav-dot" />}
+              {backupLevel === "urgent" && <span className="nav-dot" style={{ top: 1, insetInlineEnd: 10 }} />}
             </span>
             {nav[3].label}
             {backupLevel === "urgent" && <span className="sr-only">{t("backupUnsaved")}</span>}
@@ -213,11 +231,15 @@ function Router() {
 }
 
 function Onboarding() {
-  const { t, prefs, setPrefs, run, saveMeta, toast } = useApp();
+  const { t, prefs, setPrefs, run, saveMeta, toast, lang } = useApp();
+  const cloud = useCloud();
+  const [signing, setSigning] = useState(false);
   const [mode, setMode] = useState<"personal" | "business">("personal");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const drive = useDrive();
+  const [fromDrive, setFromDrive] = useState(false);
   const start = async (demo: boolean) => {
     setBusy(true);
     try {
@@ -233,8 +255,10 @@ function Onboarding() {
   };
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-5">
-      <div className="ruled card p-6">
-        <BookOpen className="owed mb-3" size={34} aria-hidden />
+      <div className="hero p-6">
+        <span className="tile-icon mb-4" style={{ width: 56, height: 56, borderRadius: 18, background: "var(--accent)", color: "var(--accent-ink)" }}>
+          <BookOpen size={30} aria-hidden />
+        </span>
         <h1 className="text-[26px] font-bold leading-snug">{t("welcome")}</h1>
         <p className="help mt-2 text-[15px]">{t("welcomeText")}</p>
       </div>
@@ -269,13 +293,25 @@ function Onboarding() {
         <button className="btn" disabled={busy} onClick={() => start(true)}>
           {t("startDemo")}
         </button>
+        {cloud.available && !signing && !cloud.account && (
+          <button className="btn" disabled={busy} onClick={() => setSigning(true)}>
+            {accountText(lang, "haveAccount")}
+          </button>
+        )}
+        {drive.available && !fromDrive && (
+          <button className="btn" disabled={busy} onClick={() => setFromDrive(true)}>
+            {driveText(lang, "fromDrive")}
+          </button>
+        )}
         {!restoring && (
           <button className="btn" disabled={busy} onClick={() => setRestoring(true)}>
             {t("restoreFromBackup")}
           </button>
         )}
       </div>
+      {(signing || cloud.account) && <FirstSignIn />}
       {restoring && <RestoreCard firstLaunch />}
+      {fromDrive && <DriveRestore />}
     </div>
   );
 }

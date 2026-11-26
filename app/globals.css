@@ -1,52 +1,98 @@
 @import "tailwindcss";
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* Notebook palette: green ink = owed to me (ليك), blue ballpoint ink = I owe (عليك),
-   red only for overdue, ochre for "soon". */
+/* "Zellige" palette (D38). Meanings never change: green = owed to me (ليك), blue = I owe
+   (عليك), red only for overdue, ochre for "soon". Deep emerald carries the brand, saffron is
+   the one accent (the add button), and people get coloured tiles. */
 :root {
-  --paper: #f3f5f4;
+  --paper: #eff6f2;
   --surface: #ffffff;
-  --surface-2: #f8faf9;
-  --ink: #14201c;
-  --muted: #5b6863;
-  --line: #dce3df;
-  --rule: #e6ecea;
-  --brand: #0f5c4d;
+  --surface-2: #f5faf7;
+  --ink: #10231c;
+  --muted: #53645d;
+  --line: #d5e4dc;
+  --rule: #e3eee8;
+  --brand: #0e6b50;
   --brand-ink: #ffffff;
+  --brand-soft: #dff2e9;
   --owed: #0b7357;
-  --owed-soft: #e5f3ee;
-  --owe: #3346a8;
-  --owe-soft: #eaedfb;
+  --owed-soft: #e2f4ec;
+  --owe: #2f4bd8;
+  --owe-soft: #e7ecff;
   --late: #b42318;
-  --late-soft: #fdecea;
-  --soon: #96610f;
-  --soon-soft: #fbf1df;
+  --late-soft: #fdeae7;
+  --soon: #8f5b07;
+  --soon-soft: #fff1d6;
+  --accent: #f2a516;
+  --accent-ink: #3d2600;
+  --accent-soft: #fff0cc;
+  --hero: #0e6b50;
+  --hero-ink: #ffffff;
+  --hero-soft: #c4eedc;
+  --hero-track: #0a553f;
+  --hero-owed: #7be0b8;
+  --hero-owe: #a9b8ff;
   --focus: #1f8a70;
-  --shadow: 0 1px 0 rgba(20, 32, 28, 0.04), 0 8px 24px -16px rgba(20, 32, 28, 0.18);
-  --radius: 14px;
+  --shadow: 0 1px 0 rgba(16, 35, 28, 0.04), 0 8px 24px -16px rgba(16, 35, 28, 0.18);
+  --radius: 16px;
   --font: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+  /* person tiles: background / ink */
+  --t0: #ffe7b3;
+  --t0i: #7a4b00;
+  --t1: #fad4e0;
+  --t1i: #8a1f47;
+  --t2: #d6deff;
+  --t2i: #26389e;
+  --t3: #c6eedc;
+  --t3i: #0b5a42;
+  --t4: #e8dafa;
+  --t4i: #5b2a86;
+  --t5: #cbedf2;
+  --t5i: #0b5965;
   color-scheme: light;
 }
 [data-theme="dark"] {
-  --paper: #0f1513;
-  --surface: #161e1b;
-  --surface-2: #1b2521;
-  --ink: #e6eeea;
-  --muted: #9aaba4;
-  --line: #27332f;
-  --rule: #1d2824;
-  --brand: #59c3a4;
-  --brand-ink: #062019;
+  --paper: #0b1411;
+  --surface: #12201a;
+  --surface-2: #172a22;
+  --ink: #e3efe9;
+  --muted: #9bb0a7;
+  --line: #233a30;
+  --rule: #1a2c25;
+  --brand: #4cc79c;
+  --brand-ink: #04241a;
+  --brand-soft: #15342a;
   --owed: #4fc59a;
-  --owed-soft: #173229;
-  --owe: #96a4ff;
-  --owe-soft: #1e2440;
+  --owed-soft: #15342a;
+  --owe: #9aa8ff;
+  --owe-soft: #1c2546;
   --late: #ff8a7a;
   --late-soft: #3a1f1c;
   --soon: #e6b35c;
   --soon-soft: #352a17;
-  --focus: #59c3a4;
+  --accent: #f5b83d;
+  --accent-ink: #2b1c00;
+  --accent-soft: #3a2c0e;
+  --hero: #0d5841;
+  --hero-ink: #ffffff;
+  --hero-soft: #b4e6d0;
+  --hero-track: #08402f;
+  --hero-owed: #6fdcb1;
+  --hero-owe: #9aa8ff;
+  --focus: #4cc79c;
   --shadow: none;
+  --t0: #3d2e0c;
+  --t0i: #ffd27a;
+  --t1: #3f1b2a;
+  --t1i: #f7a9c3;
+  --t2: #1e2750;
+  --t2i: #b3c0ff;
+  --t3: #123a2d;
+  --t3i: #8fe0bd;
+  --t4: #2e1f45;
+  --t4i: #d2b8f5;
+  --t5: #0f3539;
+  --t5i: #8eddeb;
   color-scheme: dark;
 }
 
@@ -184,6 +230,21 @@ textarea.input {
 [data-theme="dark"] .btn-owe {
   color: #0b1210;
 }
+/* ".btn:hover" would paint these white (and keep them white after a tap on a phone). */
+.btn-owed:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--owed) 88%, black);
+}
+.btn-owe:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--owe) 88%, black);
+}
+.btn-accent {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-color: transparent;
+}
+.btn-accent:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 30%, var(--accent-soft));
+}
 .btn-danger {
   color: var(--late);
   border-color: color-mix(in srgb, var(--late) 35%, var(--line));
@@ -310,17 +371,42 @@ a.row:hover {
   background: var(--surface-2);
 }
 .avatar {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--t3);
   font-weight: 700;
-  font-size: 13px;
-  color: var(--brand);
+  font-size: 14px;
+  color: var(--t3i);
+}
+.avatar[data-tone="0"] {
+  background: var(--t0);
+  color: var(--t0i);
+}
+.avatar[data-tone="1"] {
+  background: var(--t1);
+  color: var(--t1i);
+}
+.avatar[data-tone="2"] {
+  background: var(--t2);
+  color: var(--t2i);
+}
+.avatar[data-tone="4"] {
+  background: var(--t4);
+  color: var(--t4i);
+}
+.avatar[data-tone="5"] {
+  background: var(--t5);
+  color: var(--t5i);
+}
+.avatar-lg {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  font-size: 17px;
 }
 .section-title {
   font-size: 15px;
@@ -374,16 +460,114 @@ a.row:hover {
 .bottomnav [aria-current="page"] {
   color: var(--brand);
 }
-.add-fab {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+.nav-pill {
   display: grid;
   place-items: center;
-  background: var(--brand);
-  color: var(--brand-ink);
-  margin-top: -18px;
-  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--brand) 70%, transparent);
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+}
+.bottomnav [aria-current="page"] .nav-pill {
+  background: var(--brand-soft);
+}
+.add-fab {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  margin-top: -20px;
+  border: 3px solid var(--surface);
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--accent) 80%, black);
+}
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--hero);
+  color: var(--hero-ink);
+}
+
+/* ---------- home: the green card ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 14px;
+  color: var(--hero-ink);
+  background-color: var(--hero);
+  /* a faint eight-pointed zellige star, repeated */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='white' stroke-opacity='.1' stroke-width='1.3'%3E%3Crect x='17' y='17' width='22' height='22'/%3E%3Crect x='17' y='17' width='22' height='22' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='4.5'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 56px 56px;
+  box-shadow: 0 16px 30px -22px color-mix(in srgb, var(--hero) 90%, black);
+}
+.hero .help {
+  color: var(--hero-soft);
+}
+.hero .hero-owe .help {
+  color: var(--muted);
+}
+.hero-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.hero-row + .hero-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--hero-ink) 20%, transparent);
+}
+.hero-owed {
+  padding: 6px 4px 4px;
+  min-width: 0;
+}
+.hero-owe {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.hero-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.hero-owed .hero-label {
+  color: var(--hero-soft);
+}
+.hero-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 3px;
+  height: 7px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--hero-track);
+}
+.hero-bar > span {
+  border-radius: 7px;
+}
+.hero-bar .bar-owed {
+  background: var(--hero-owed);
+}
+.hero-bar .bar-owe {
+  background: var(--hero-owe);
+}
+.tile-icon {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
 }
 .sidebar {
   display: none;
@@ -418,8 +602,15 @@ a.row:hover {
     background: var(--surface-2);
   }
   .sidebar a[aria-current="page"] {
-    background: var(--owed-soft);
+    background: var(--brand-soft);
     color: var(--brand);
+  }
+  .sidebar .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .sidebar .btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 88%, black);
   }
   .bottomnav {
     display: none;

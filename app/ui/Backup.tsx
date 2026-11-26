@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Download, Send, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
+import { useCloud } from "@/lib/ui/cloud";
 import { Money, Seg, downloadText, go, useAsk } from "@/lib/ui/components";
 import { errorMessage, snapshotLabel, storeLabel } from "@/lib/ui/i18n";
 import { computeTotals, createBackup, parseBackup, serializeBackup, type BackupFile } from "@/lib/core/backup";
@@ -10,6 +11,8 @@ import { loadLedger, prepareRestore, restoreBackup, type RestorePlan } from "@/l
 import { formatDate, formatDateTime } from "@/lib/core/dates";
 import { brand } from "@/lib/brand";
 import { useBackupStatus, useQuickBackup } from "./useQuickBackup";
+import { DriveCard, DriveCopyButton } from "./Drive";
+import { useDrive } from "@/lib/ui/drive";
 
 const MIN_PASSPHRASE = 8;
 const CONFIRM_EVERY = 60 * 86_400_000;
@@ -19,6 +22,7 @@ export function Backup() {
   return (
     <>
       <h1 className="text-[22px] font-bold">{t("backup")}</h1>
+      <DriveCard />
       <QuickCard />
       <RestoreCard />
       <ExportCard />
@@ -50,7 +54,7 @@ function QuickCard() {
             )}
             <span className="block">
               {t("lastBackup")}: <b>{meta?.lastBackupAt ? formatDateTime(meta.lastBackupAt, ws?.timezone) : t("never")}</b>
-              {meta?.lastBackupVia && <> ({t(meta.lastBackupVia === "shared" ? "viaShared" : "viaDownloaded")})</>}
+              {meta?.lastBackupVia && <> ({t(meta.lastBackupVia === "shared" ? "viaShared" : meta.lastBackupVia === "drive" ? "viaDrive" : "viaDownloaded")})</>}
             </span>
           </span>
         </p>
@@ -188,9 +192,14 @@ function PassphraseForm({ onDone }: { onDone?: () => void }) {
 export function BackupReminder() {
   const { t, meta, lang } = useApp();
   const status = useBackupStatus();
+  const cloud = useCloud();
+  const drive = useDrive();
+  // The first copy is on its way to the account; if it does not arrive, the status changes.
+  const leaving = !!cloud.account && (cloud.status === "waiting" || cloud.status === "working");
   // Kept on screen after a tap, so the confirmation is still readable once nothing is due.
   const [shown, setShown] = useState(false);
   const unsaved = status.level === "due" || status.level === "urgent";
+  if (leaving && !shown) return null;
   if (unsaved && !shown) setShown(true);
   if (!unsaved && !shown) return null;
   return (
@@ -207,7 +216,11 @@ export function BackupReminder() {
           )}
         </span>
       </p>
-      {meta?.backupKey ? (
+      {drive.connected ? (
+        <div className="w-full">
+          <DriveCopyButton />
+        </div>
+      ) : meta?.backupKey ? (
         <div className="w-full">
           <QuickButtons compact />
         </div>
@@ -321,18 +334,12 @@ function ExportCard() {
 
 /** Also shown on first launch (a new phone), where there is nothing to replace. */
 export function RestoreCard({ firstLaunch }: { firstLaunch?: boolean }) {
-  const { t, lang, data, ws, meta, saveMeta, store, reload, toast } = useApp();
-  const ask = useAsk();
+  const { t, lang } = useApp();
   const [file, setFile] = useState<BackupFile | null>(null);
   const [fileName, setFileName] = useState("");
-  const [rpass, setRpass] = useState("");
-  const [plan, setPlan] = useState<RestorePlan | null>(null);
-  const [mode, setMode] = useState<"merge" | "replace">("merge");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pick = async (f: File | undefined) => {
-    setPlan(null);
     setError(null);
     if (!f) return;
     try {
@@ -343,6 +350,26 @@ export function RestoreCard({ firstLaunch }: { firstLaunch?: boolean }) {
       setError(errorMessage(lang, e));
     }
   };
+  return (
+    <section className="card stack p-4">
+      <h2 className="section-title">{t("restore")}</h2>
+      <input type="file" accept=".txt,.json,text/plain,application/json" aria-label={t("restore")} className="input" onChange={(e) => pick(e.target.files?.[0])} />
+      {file && <RestoreFlow key={fileName + file.createdAt} file={file} label={fileName} firstLaunch={firstLaunch} onDone={() => setFile(null)} />}
+      {error && <p className="banner banner-late">{error}</p>}
+    </section>
+  );
+}
+
+/** From a chosen backup (a file, or a copy in Google Drive) to the restored notebook: checked first, then confirmed. */
+export function RestoreFlow({ file, label, firstLaunch, onDone }: { file: BackupFile; label: string; firstLaunch?: boolean; onDone?: () => void }) {
+  const { t, lang, data, ws, meta, saveMeta, store, reload, toast } = useApp();
+  const ask = useAsk();
+  const [rpass, setRpass] = useState("");
+  const [plan, setPlan] = useState<RestorePlan | null>(null);
+  const [mode, setMode] = useState<"merge" | "replace">("merge");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const verify = async () => {
     if (!file) return;
     setBusy(true);
@@ -380,8 +407,8 @@ export function RestoreCard({ firstLaunch }: { firstLaunch?: boolean }) {
         ...(backupKey ? { backupKey } : {}),
       });
       setPlan(null);
-      setFile(null);
       setRpass("");
+      onDone?.();
       toast(result.conflicts.length ? `${t("restoreDone")} ${t("mergeConflicts")}: ${result.conflicts.length}` : t("restoreDone"));
       if (firstLaunch) go("/");
     } catch (e) {
@@ -391,13 +418,11 @@ export function RestoreCard({ firstLaunch }: { firstLaunch?: boolean }) {
     }
   };
   return (
-    <section className="card stack p-4">
-      <h2 className="section-title">{t("restore")}</h2>
-      <input type="file" accept=".txt,.json,text/plain,application/json" aria-label={t("restore")} className="input" onChange={(e) => pick(e.target.files?.[0])} />
+    <div className="stack">
       {file && (
         <>
           <p className="help">
-            {fileName} · <bdi className="num">{formatDateTime(file.createdAt, ws?.timezone)}</bdi> · {file.encryption ? "AES-GCM" : "—"}
+            {label} · <bdi className="num">{formatDateTime(file.createdAt, ws?.timezone)}</bdi> · {file.encryption ? "AES-GCM" : "—"}
           </p>
           <ul className="help grid grid-cols-2 gap-x-4 sm:grid-cols-3">
             {Object.entries(file.manifest.counts)
@@ -430,7 +455,7 @@ export function RestoreCard({ firstLaunch }: { firstLaunch?: boolean }) {
         </>
       )}
       {error && <p className="banner banner-late">{error}</p>}
-    </section>
+    </div>
   );
 }
 
@@ -438,7 +463,7 @@ function Snapshots() {
   const { t, lang, store, data, ws } = useApp();
   const [snapshots, setSnapshots] = useState<{ id: string; createdAt: string; reason: string }[]>([]);
   useEffect(() => {
-    store?.run("readonly", (tx) => tx.all("snapshots")).then((s) => setSnapshots(s.map(({ id, createdAt, reason }) => ({ id, createdAt, reason })).sort((a, b) => b.createdAt.localeCompare(a.createdAt))));
+    store?.run("readonly", (tx) => tx.all("snapshots")).then((s) => setSnapshots(s.filter((x) => x.backup).map(({ id, createdAt, reason }) => ({ id, createdAt, reason })).sort((a, b) => b.createdAt.localeCompare(a.createdAt))));
   }, [store, data]);
   const download = async (id: string) => {
     const s = await store?.run("readonly", (tx) => tx.get("snapshots", id));

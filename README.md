@@ -4,7 +4,7 @@ A local-first debt notebook for individuals, shopkeepers, freelancers, tradespeo
 
 "Nsalek / نسالك" is a **working name**. It is a configurable placeholder (`lib/brand.ts`, `NEXT_PUBLIC_BRAND_NAME*`) and has not been checked for trademark availability.
 
-Nsalek is a separate product derived from the Agrovet/Vetna veterinary clinic debt app. It does **not** connect to the clinic's Firebase project or any server. See `docs/current-app-audit.md` and `docs/feature-mapping.md`.
+Nsalek is a separate product derived from the Agrovet/Vetna veterinary clinic debt app. It never connects to the clinic's Firebase project. Optional accounts use Nsalek's own project; without an account nothing leaves the phone. See `docs/current-app-audit.md` and `docs/feature-mapping.md`.
 
 ## What it does
 
@@ -18,7 +18,9 @@ Nsalek is a separate product derived from the Agrovet/Vetna veterinary clinic de
 - **Statements.** Printable Arabic RTL and French LTR statements, saved to PDF through the browser's print dialog, with the bundled IBM Plex Sans Arabic font, opening/closing balances and repeated table headers.
 - **Data.** CSV export with formula-injection protection; CSV import with dry run, duplicate/replay detection and reversible batches; an explicit Agrovet JSON importer with reconciliation.
 - **Backups.** Versioned and checked with sha256, optionally encrypted (WebCrypto PBKDF2 + AES-GCM). Restore is validated in temporary storage first and keeps a pre-restore snapshot. You choose merge or replace, and restoring twice never double-counts.
-- **Privacy.** PIN privacy lock (not encryption), hide-amounts toggle, generic notification text. No account, analytics or network calls.
+- **Google Drive copy (optional).** A second copy, photos included, in a hidden folder of the person's own Google Drive; put back on a new phone from the first screen (`lib/drive/`, D39).
+- **Account (optional).** Google or email sign-in, automatic cloud copy after each change, return on a new phone, older copies, two phones combined without losing an entry (`docs/cloud-design.md`).
+- **Privacy.** PIN privacy lock (not encryption), hide-amounts toggle, generic notification text. No analytics; no network calls without an account.
 
 ## Run locally
 
@@ -29,6 +31,7 @@ npm install
 npm run dev          # http://127.0.0.1:3100
 npm run build        # static export in out/
 npm start            # serves out/ on http://127.0.0.1:3200 (local review only)
+npm run dev:cloud    # the app with accounts, on local Firebase emulators (needs Java 21)
 ```
 
 ## Checks
@@ -37,6 +40,7 @@ npm start            # serves out/ on http://127.0.0.1:3200 (local review only)
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm test             # node --test, all tests in tests/
+npm run test:cloud   # accounts, rules and cloud copy against the Firebase emulators
 npm run bench        # 1,000 people / 50,000 movements (see docs/performance.md)
 npm run check        # typecheck + lint + test + build
 ```
@@ -47,6 +51,7 @@ npm run check        # typecheck + lint + test + build
 |---|---|
 | `lib/core/` | Framework-free financial core: types, money parsing/formatting, ledger derivations, command engine, collections, installments, recurrence, invoices, reports, backup/restore, CSV, crypto wrappers |
 | `lib/storage/idb.ts` | IndexedDB implementation of the transactional store |
+| `lib/cloud/` | Cloud copy: bundle, three-way comparison, decisions (`sync.ts`, knows nothing about Firebase), Firebase, timing |
 | `lib/migration/agrovet.ts` | Optional legacy importer for clinic exports |
 | `lib/ui/` | React state, components, dictionaries (ar/fr/en) |
 | `app/` | Next.js 16 static-export app (hash routing), sample statement page |
@@ -58,6 +63,7 @@ npm run check        # typecheck + lint + test + build
 - `docs/current-app-audit.md`: findings on the clinic app, with file references
 - `docs/feature-mapping.md`: clinic feature → keep / generalize / isolate / repair
 - `docs/implementation-plan.md` and `docs/decisions.md`
+- `docs/cloud-design.md`, `docs/cloud-activation.md`: accounts and cloud copy; how to switch them on
 - `docs/migration.md`: Agrovet import, reconciliation, rollback
 - `docs/capabilities.md`: storage, backup/restore, notifications, offline: what works and what does not
 - `docs/performance.md`: measured numbers and environment

@@ -38,8 +38,24 @@ Les écritures ne sont jamais effacées :
 ## Relevé PDF
 Fiche → **Relevé** → période, devise et langue → **Imprimer / PDF** → « Enregistrer au format PDF ».
 
+## Compte et copie en ligne (facultatif)
+- **Plus → Compte** : connectez-vous avec Google ou par e-mail. Le carnet est copié en ligne tout seul après chaque changement ; le nuage en haut dit où il en est.
+- **Téléphone perdu** : sur le nouveau, « J’ai déjà un compte ». **Mot de passe oublié** : un lien par e-mail, rien n’est perdu. Ajoutez Google *et* un mot de passe : si l’un est perdu, l’autre ouvre.
+- **Compte perdu pour de bon** : le carnet est encore sur votre téléphone ; créez un autre compte et choisissez « C’est mon carnet : le rattacher à ce compte ».
+- **Copies précédentes** : revenez à une copie plus ancienne ; l’état actuel est copié d’abord.
+- **Deux téléphones** : même compte ; les changements arrivent à l’ouverture ou en quelques minutes. Si la même chose a changé des deux côtés, l’application demande.
+- **Ce qui n’est pas copié** : les photos et le carnet de démonstration.
+- La copie est sur des serveurs de Google ; l’exploitant de l’application peut techniquement y accéder. « Supprimer le compte » efface tout ce qui est en ligne.
+
+## Copie dans votre Google Drive (facultatif)
+- **Plus → Sauvegarde → Connecter Google Drive** : une copie du carnet, photos comprises, va dans un dossier caché de *votre* Google Drive. Seul Nsalek l’ouvre ; elle compte dans votre espace Google (15 Go gratuits).
+- L’autorisation de Google dure environ une heure : pendant ce temps les changements sont copiés d’eux-mêmes. Après, touchez **Copier maintenant**.
+- **Nouveau téléphone** : au premier écran, « Restaurer depuis Google Drive », choisissez votre compte Google puis une copie.
+- **Espace Google plein** : libérez de la place ou achetez de l’espace chez Google, puis « Copier maintenant ». Rien n’est effacé entre-temps.
+- C’est une deuxième copie, ailleurs : elle ne remplace pas le compte Nsalek.
+
 ## Sauvegarde
-- Les données sont uniquement sur cet appareil ; effacer les données du site les supprime.
+- Sans compte, les données sont uniquement sur cet appareil ; effacer les données du site les supprime.
 - **Plus → Sauvegarde** : téléchargez une copie, de préférence chiffrée. **Une phrase secrète oubliée ne peut pas être récupérée.**
 - À la restauration, le fichier est vérifié d’abord ; choisissez ensuite « fusionner » (sans doublon) ou « remplacer ». Un instantané est conservé avant la restauration.
 

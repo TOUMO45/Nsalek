@@ -57,6 +57,9 @@ export async function restoreBackup(
           added++;
         }
       }
+      // This is another notebook now: the account's copy is not replaced by it without asking.
+      const meta = await tx.get("meta", "app");
+      if (meta?.cloud) await tx.put("meta", { ...meta, cloud: { ...meta.cloud, link: undefined, pendingId: undefined, pin: undefined, epoch: crypto.randomUUID() } });
       return { mode: "replace", snapshotId: snap.id, added, skipped: 0, conflicts: [] };
     }
     // Merge: add unknown ids, skip identical records, never overwrite a different record.

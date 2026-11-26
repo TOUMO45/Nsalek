@@ -80,7 +80,7 @@ export function PeopleList() {
             ["archived", t("archived")],
           ] as [FilterKey, string][]
         ).map(([k, label]) => (
-          <button key={k} className="chip" aria-pressed={filter === k} style={filter === k ? { background: "var(--ink)", color: "var(--paper)", borderColor: "transparent", minHeight: 32 } : { minHeight: 32 }} onClick={() => setFilter(k)}>
+          <button key={k} className="chip" aria-pressed={filter === k} style={filter === k ? { background: "var(--brand)", color: "var(--brand-ink)", borderColor: "transparent", minHeight: 32 } : { minHeight: 32 }} onClick={() => setFilter(k)}>
             {label}
           </button>
         ))}
@@ -213,7 +213,7 @@ export function PersonPage({ partyId }: { partyId: string }) {
       </a>
       <section className="card p-4">
         <div className="flex items-start gap-3">
-          <Avatar name={party.displayName} />
+          <Avatar name={party.displayName} large />
           <div className="min-w-0 flex-1">
             <h1 className="text-[20px] font-bold leading-tight">{party.displayName}</h1>
             <div className="mt-1 flex flex-wrap gap-1">
@@ -445,7 +445,7 @@ function Timeline({ partyId }: { partyId: string }) {
     <section className="card overflow-hidden">
       <div className="flex gap-1.5 overflow-x-auto p-2">
         {(["all", "debts", "payments", "corrections", "follow"] as TlFilter[]).map((f) => (
-          <button key={f} className="chip" style={filter === f ? { background: "var(--ink)", color: "var(--paper)", minHeight: 30 } : { minHeight: 30 }} onClick={() => setFilter(f)}>
+          <button key={f} className="chip" style={filter === f ? { background: "var(--brand)", color: "var(--brand-ink)", borderColor: "transparent", minHeight: 30 } : { minHeight: 30 }} onClick={() => setFilter(f)}>
             {f === "all" ? t("all") : f === "debts" ? t("debts") : f === "payments" ? t("payments") : f === "corrections" ? t("adjust") : t("followUp")}
           </button>
         ))}

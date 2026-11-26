@@ -67,9 +67,16 @@ export function StatusChip({ status, overdueDays, disputed }: { status: Obligati
   );
 }
 
-export function Avatar({ name }: { name: string }) {
+/** One of the six tile colours, always the same for the same name. */
+export function toneOf(name: string): number {
+  let h = 0;
+  for (const ch of name.trim().toLowerCase()) h = (h * 31 + ch.codePointAt(0)!) >>> 0;
+  return h % 6;
+}
+
+export function Avatar({ name, large = false }: { name: string; large?: boolean }) {
   return (
-    <span className="avatar" aria-hidden>
+    <span className={large ? "avatar avatar-lg" : "avatar"} data-tone={toneOf(name)} aria-hidden>
       {initials(name)}
     </span>
   );
@@ -203,7 +210,11 @@ export function Seg<T extends string>({ value, options, onChange, label }: { val
 export function Empty({ icon, title, text, action }: { icon?: ReactNode; title: string; text?: string; action?: ReactNode }) {
   return (
     <div className="card flex flex-col items-center gap-2 px-6 py-10 text-center">
-      {icon && <div className="muted">{icon}</div>}
+      {icon && (
+        <div className="mb-1 grid h-16 w-16 place-items-center rounded-[20px]" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          {icon}
+        </div>
+      )}
       <p className="text-[16px] font-bold">{title}</p>
       {text && <p className="help max-w-sm">{text}</p>}
       {action && <div className="mt-2">{action}</div>}

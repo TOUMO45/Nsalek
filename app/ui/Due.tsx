@@ -25,7 +25,7 @@ export function Due({ tab: initial }: { tab?: string }) {
       <h1 className="text-[22px] font-bold">{t("due")}</h1>
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist">
         {tabs.map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className="chip" style={tab === k ? { background: "var(--ink)", color: "var(--paper)", minHeight: 34 } : { minHeight: 34 }} onClick={() => go(`/due/${k}`)}>
+          <button key={k} role="tab" aria-selected={tab === k} className="chip" style={tab === k ? { background: "var(--brand)", color: "var(--brand-ink)", borderColor: "transparent", minHeight: 34 } : { minHeight: 34 }} onClick={() => go(`/due/${k}`)}>
             {label}
           </button>
         ))}

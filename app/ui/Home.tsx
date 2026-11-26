@@ -3,12 +3,15 @@ import { useMemo } from "react";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, Mic, NotebookPen } from "lucide-react";
 import { useApp } from "@/lib/ui/state";
 import { BackupReminder } from "./Backup";
+import { CloudNotice } from "./Account";
 import { peopleCount } from "@/lib/ui/i18n";
 import { useSheet } from "@/lib/ui/sheets";
 import { Avatar, DirectionIcon, Empty, Money } from "@/lib/ui/components";
 import { workspaceTotals, figuresOf } from "@/lib/core/ledger";
 import { dailyActions } from "@/lib/core/collections";
 import { formatDate } from "@/lib/core/dates";
+
+const ACTION = { minHeight: 60, padding: "10px 8px", gap: 4 } as const;
 
 export function Home() {
   const { idx, today, t, prefs, ws, lang, flashId } = useApp();
@@ -32,66 +35,84 @@ export function Home() {
 
   return (
     <div className="stack">
+      <CloudNotice />
       <BackupReminder />
 
-      <section className="ruled card overflow-hidden" aria-label={`${owedLabel} / ${oweLabel}`}>
-        <div className="grid grid-cols-2">
-          <div className="p-4" style={{ borderInlineEnd: "1px solid var(--line)" }}>
-            <p className="flex items-center gap-1.5 text-[15px] font-bold owed">
-              <ArrowDownLeft size={18} aria-hidden /> {owedLabel}
-            </p>
-            <p className="help">{t("owedToMeHelp")}</p>
-          </div>
-          <div className="p-4">
-            <p className="flex items-center gap-1.5 text-[15px] font-bold owe">
-              <ArrowUpRight size={18} aria-hidden /> {oweLabel}
-            </p>
-            <p className="help">{t("iOweHelp")}</p>
-          </div>
-        </div>
-        {(totals.length ? totals : [[ws.defaultCurrency, null] as const]).map(([currency, b]) => (
-          <div key={currency} className="grid grid-cols-2" style={{ borderTop: "1px solid var(--line)" }}>
-            <div className="px-4 py-3" style={{ borderInlineEnd: "1px solid var(--line)" }}>
-              <p className="owed hero-amount">
-                <Money minor={b?.receivable ?? 0} currency={currency} />
-              </p>
-              <p className="help">
-                <bdi>{peopleCount(lang, b?.debtors ?? 0)}</bdi>
-                {b && b.advanceReceived > 0 && (
+      <section className="hero" aria-label={`${owedLabel} / ${oweLabel}`}>
+        {(totals.length ? totals : [[ws.defaultCurrency, null] as const]).map(([currency, b], i) => {
+          const owed = b?.receivable ?? 0;
+          const owe = b?.payable ?? 0;
+          // Only the width of the bar: a picture of the two sides, never a sum shown as money.
+          const share = owed && owe ? Math.min(97, Math.max(3, Math.round((owed * 100) / (owed + owe)))) : owed ? 100 : 0;
+          return (
+            <div key={currency} className="hero-row">
+              <div className="hero-owed">
+                {i === 0 && (
                   <>
-                    {" · "}
-                    {t("advance")} <Money minor={b.advanceReceived} currency={currency} />
+                    <p className="hero-label">
+                      <ArrowDownLeft size={18} aria-hidden /> {owedLabel}
+                    </p>
+                    <p className="help">{t("owedToMeHelp")}</p>
                   </>
                 )}
-              </p>
+                <p className="hero-amount mt-2">
+                  <Money minor={owed} currency={currency} />
+                </p>
+                <p className="help">
+                  <bdi>{peopleCount(lang, b?.debtors ?? 0)}</bdi>
+                  {b && b.advanceReceived > 0 && (
+                    <>
+                      {" · "}
+                      {t("advance")} <Money minor={b.advanceReceived} currency={currency} />
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="hero-owe">
+                {i === 0 && (
+                  <>
+                    <p className="hero-label owe">
+                      <ArrowUpRight size={18} aria-hidden /> {oweLabel}
+                    </p>
+                    <p className="help">{t("iOweHelp")}</p>
+                  </>
+                )}
+                <p className="owe hero-amount mt-2">
+                  <Money minor={owe} currency={currency} />
+                </p>
+                <p className="help">
+                  <bdi>{peopleCount(lang, b?.creditors ?? 0)}</bdi>
+                </p>
+              </div>
+              {(owed > 0 || owe > 0) && !prefs.hideAmounts && (
+                <div className="hero-bar" aria-hidden>
+                  {owed > 0 && <span className="bar-owed" style={{ width: `${share}%` }} />}
+                  {owe > 0 && <span className="bar-owe" style={{ flex: 1 }} />}
+                </div>
+              )}
             </div>
-            <div className="px-4 py-3">
-              <p className="owe hero-amount">
-                <Money minor={b?.payable ?? 0} currency={currency} />
-              </p>
-              <p className="help">
-                <bdi>{peopleCount(lang, b?.creditors ?? 0)}</bdi>
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
 
-      <button className="btn w-full" onClick={() => open({ kind: "voice" })}>
-        <Mic size={20} aria-hidden /> {t("voiceStart")} · {t("voice")}
+      <button className="btn w-full" style={{ justifyContent: "flex-start", gap: 12, paddingInlineStart: 6, minHeight: 50 }} onClick={() => open({ kind: "voice" })}>
+        <span className="tile-icon" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <Mic size={20} aria-hidden />
+        </span>
+        {t("voiceStart")} · {t("voice")}
       </button>
 
       <div className="grid grid-cols-3 gap-2">
-        <button className="btn btn-owed min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] btn-wrap leading-tight" onClick={() => open({ kind: "debt", direction: "receivable" })}>
+        <button className="btn btn-owed flex-col text-[13px] btn-wrap leading-tight" style={ACTION} onClick={() => open({ kind: "debt", direction: "receivable" })}>
           <ArrowDownLeft size={20} aria-hidden />
           {t("addOwedToMe")}
         </button>
-        <button className="btn btn-owe min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] btn-wrap leading-tight" onClick={() => open({ kind: "debt", direction: "payable" })}>
+        <button className="btn btn-owe flex-col text-[13px] btn-wrap leading-tight" style={ACTION} onClick={() => open({ kind: "debt", direction: "payable" })}>
           <ArrowUpRight size={20} aria-hidden />
           {t("addIOwe")}
         </button>
-        <button className="btn min-h-[52px] flex-col gap-0.5 px-2 py-2 text-[13px] btn-wrap leading-tight" onClick={() => open({ kind: "payment" })}>
-          <HandCoins size={20} aria-hidden />
+        <button className="btn btn-accent flex-col text-[13px] btn-wrap leading-tight" style={ACTION} onClick={() => open({ kind: "payment" })}>
+          <HandCoins size={20} aria-hidden style={{ color: "var(--soon)" }} />
           {t("recordRepayment")}
         </button>
       </div>
@@ -111,15 +132,19 @@ export function Home() {
         <>
           <div className="grid grid-cols-2 gap-2">
             <a href="#/due/today" className="card flex items-center gap-3 p-3">
-              <CalendarClock className="muted" size={22} aria-hidden />
-              <span>
+              <span className="tile-icon" style={{ background: "var(--soon-soft)", color: "var(--soon)" }}>
+                <CalendarClock size={20} aria-hidden />
+              </span>
+              <span className="flex flex-col items-start">
                 <span className="block text-[22px] font-bold num">{dueTodayCount}</span>
                 <span className="help">{t("dueToday")}</span>
               </span>
             </a>
-            <a href="#/due/overdue" className="card flex items-center gap-3 p-3">
-              <AlertTriangle className={overdueCount ? "late" : "muted"} size={22} aria-hidden />
-              <span>
+            <a href="#/due/overdue" className="card flex items-center gap-3 p-3" style={overdueCount ? { background: "var(--late-soft)", borderColor: "transparent" } : undefined}>
+              <span className="tile-icon" style={{ background: overdueCount ? "var(--surface)" : "var(--surface-2)", color: overdueCount ? "var(--late)" : "var(--muted)" }}>
+                <AlertTriangle size={20} aria-hidden />
+              </span>
+              <span className="flex flex-col items-start">
                 <span className={`block text-[22px] font-bold num ${overdueCount ? "late" : ""}`}>{overdueCount}</span>
                 <span className="help">{t("overdue")}</span>
               </span>

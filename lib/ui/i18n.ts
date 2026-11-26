@@ -355,7 +355,7 @@ const S = {
   storageError: ["تعذّر فتح التخزين المحلي. قد يكون التصفح الخاص أو امتلاء الذاكرة.", "Impossible d’ouvrir le stockage local (navigation privée ou espace plein ?).", "Local storage could not be opened (private browsing or low space?)."],
   offline: ["غير متصل — كل شيء يعمل محلياً.", "Hors ligne — tout fonctionne en local.", "Offline — everything works locally."],
   welcome: ["دفتر ديونك، واضح وآمن على جهازك", "Votre carnet de dettes, clair et sur votre appareil", "Your debt notebook, clear and on your device"],
-  welcomeText: ["بدون حساب. بياناتك تبقى على هذا الجهاز مع نسخ احتياطي تختاره.", "Sans compte. Vos données restent sur cet appareil, avec les sauvegardes que vous choisissez.", "No account. Your data stays on this device, with backups you choose."],
+  welcomeText: ["بدون حساب إجباري. بياناتك على هذا الجهاز، ويمكنك حفظ نسخة منها.", "Sans compte obligatoire. Vos données sont sur cet appareil et vous pouvez en garder une copie.", "No account required. Your data is on this device, and you can keep a copy of it."],
   start: ["ابدأ", "Commencer", "Start"],
   startDemo: ["جرّب ببيانات تجريبية", "Essayer avec une démo", "Try with demo data"],
   myNotebook: ["دفتري", "Mon carnet", "My notebook"],
@@ -487,6 +487,7 @@ const S = {
   backupUpToDate: ["كل شيء موجود في النسخة الاحتياطية.", "Tout est sauvegardé.", "Everything is backed up."],
   viaShared: ["سُلّمت لتطبيق آخر", "transmise à une autre app", "handed to another app"],
   viaDownloaded: ["على هذا الجهاز", "sur cet appareil", "on this device"],
+  viaDrive: ["في Google Drive", "dans Google Drive", "in Google Drive"],
   passphraseCheck: ["هل ما زلت تتذكر كلمة المرور؟", "Vous souvenez-vous de la phrase secrète ?", "Do you still remember the passphrase?"],
   passphraseCheckBtn: ["تحقق", "Vérifier", "Check"],
   passphraseOk: ["صحيحة.", "C’est la bonne.", "That is the right one."],
@@ -699,5 +700,8 @@ export const channelLabel = (lang: Lang, channel: string): string => (CHANNELS[c
 export function snapshotLabel(lang: Lang, reason: string): string {
   if (reason === "before merge") return pick(lang, ["قبل الدمج", "Avant fusion", "Before merge"]);
   if (reason === "before replace") return pick(lang, ["قبل الاستبدال", "Avant remplacement", "Before replace"]);
+  if (reason === "cloud: before combining") return pick(lang, ["قبل جمع النسختين", "Avant de réunir les copies", "Before combining copies"]);
+  if (reason === "cloud: before taking the cloud copy") return pick(lang, ["قبل أخذ النسخة السحابية", "Avant la copie en ligne", "Before taking the cloud copy"]);
+  if (reason === "cloud: before an older copy") return pick(lang, ["قبل الرجوع إلى نسخة أقدم", "Avant une copie plus ancienne", "Before an older copy"]);
   return pick(lang, ["قبل الاسترجاع", "Avant restauration", "Before restore"]);
 }

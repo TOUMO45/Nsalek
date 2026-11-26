@@ -10,7 +10,8 @@ import { brand } from "@/lib/brand";
 
 export function useBackupStatus() {
   const { data, meta, nowMs } = useApp();
-  return useMemo(() => backupStatus(data, meta?.lastBackupAt, new Date(nowMs)), [data, meta?.lastBackupAt, nowMs]);
+  const cloudAt = meta?.cloud?.link?.savedAt;
+  return useMemo(() => backupStatus(data, meta?.lastBackupAt, new Date(nowMs), cloudAt), [data, meta?.lastBackupAt, nowMs, cloudAt]);
 }
 
 /** Makes one encrypted backup and hands it over. Needs meta.backupKey (set up on the backup screen). */

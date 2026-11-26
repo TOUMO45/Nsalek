@@ -9,6 +9,8 @@ npm-debug.log*
 # env files: only the example is committed
 .env*
 !.env.example
+# the emulators on this computer (npm run dev:cloud); no real project
+!.env.development
 # local tool state
 /.claude/settings.local.json
 /bench-results/*.local.json
@@ -16,7 +18,11 @@ npm-debug.log*
 # process state of the delivery supervisor (local only)
 /.supervisor/
 
+# knowledge graph of the code (made again with "graphify update .")
+/graphify-out/
+
 # Firebase CLI state; a project is always named on the command line (never the clinic's)
 /.firebase/
 /.firebaserc
 firebase-debug*.log
+firestore-debug*.log

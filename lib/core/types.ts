@@ -343,6 +343,27 @@ export type CommandRecord = { id: string; type: string; at: ISOTime; result: unk
 /** Non-extractable AES key. It never leaves the device and is not part of any backup. */
 export type BackupKey = { key: CryptoKey; salt: string; iterations: number; createdAt: ISOTime; confirmedAt: ISOTime };
 
+/** Where this phone and the cloud last agreed (see lib/cloud/sync.ts). */
+export type CloudLink = { lineage: string; rev: number; versionId: string; sha: string; savedAt: ISOTime };
+/**
+ * The account this phone's notebooks belong to. Stays after signing out. `bound`: something was sent
+ * to it or received from it, so another account may not have these notebooks. `epoch` changes when
+ * a person replaces the notebooks by something else (a backup file): what a round began before that
+ * must not be written down after it. `pin`: the copy to keep whatever its age, at the next save.
+ */
+export type CloudMeta = { uid: string; email: string; bound?: boolean; link?: CloudLink; pendingId?: string; epoch?: string; pin?: string };
+
+export type DriveMeta = {
+  connectedAt: ISOTime;
+  /** The Google account the copies go to, as Google gave it. */
+  email?: string | null;
+  /** When the last copy that reached Drive was taken. */
+  lastAt?: ISOTime | null;
+  /** What that copy held (lib/drive/copy.ts signature): anything else is not copied yet. */
+  sig?: string | null;
+  lastError?: string | null;
+};
+
 export type MetaRecord = {
   id: string; // "app"
   schemaVersion: number;
@@ -351,7 +372,7 @@ export type MetaRecord = {
   lastBackupAt?: ISOTime | null;
   lastBackupError?: string | null;
   /** How the last backup left the app: handed to another app, or saved on this device. */
-  lastBackupVia?: "shared" | "downloaded" | null;
+  lastBackupVia?: "shared" | "downloaded" | "drive" | null;
   /** Key for one-tap backups, derived once from the user's passphrase (see core/quickBackup.ts). */
   backupKey?: BackupKey | null;
   pin?: { salt: string; hash: string; iterations: number } | null;
@@ -360,9 +381,15 @@ export type MetaRecord = {
   pinLastFailAt?: ISOTime | null;
   persistentStorage?: "granted" | "denied" | "unsupported" | null;
   lastNotifiedOn?: ISODate | null;
+  cloud?: CloudMeta | null;
+  /** The second copy in the person's own Google Drive (lib/drive). Google's permission itself is never stored. */
+  drive?: DriveMeta | null;
+  /** A new mark each time an account leaves this phone: what other tabs have begun with it must not go on. */
+  cloudStop?: string | null;
 };
 
-export type SnapshotRecord = { id: string; createdAt: ISOTime; reason: string; backup: string };
+/** `bytes` is used only by the copy shared with the cloud, which no person sees. */
+export type SnapshotRecord = { id: string; createdAt: ISOTime; reason: string; backup: string; bytes?: Uint8Array<ArrayBuffer>; encoding?: "gzip" | "none" };
 
 export type RowMap = {
   meta: MetaRecord;

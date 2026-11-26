@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// Each account reaches only its own copy. See docs/cloud-design.md.
+// users/{uid}                     the head: which copy is current, and which are kept
+// users/{uid}/parts/{version}-{n} the bytes of one copy
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function me(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      function head() {
+        return request.resource.data;
+      }
+      function shape() {
+        return head().keys().hasOnly(['lineage', 'rev', 'versionId', 'versions', 'added', 'updatedAt'])
+          && head().keys().hasAll(['lineage', 'rev', 'versionId', 'versions', 'added', 'updatedAt'])
+          && head().lineage is string && head().lineage.size() > 0 && head().lineage.size() <= 64
+          && head().versionId is string && head().versionId.size() > 0 && head().versionId.size() <= 64
+          && head().added is string && head().added.size() > 0 && head().added.size() <= 64
+          && head().rev is int
+          && head().versions is list && head().versions.size() > 0 && head().versions.size() <= 60
+          && head().updatedAt == request.time;
+      }
+
+      allow get: if me(uid);
+      allow list: if false;
+      allow create: if me(uid) && shape() && head().rev == 1;
+      // One save follows another: never over a newer one, never into another copy, not in a rush.
+      allow update: if me(uid) && shape()
+        && head().lineage == resource.data.lineage
+        && head().rev == resource.data.rev + 1
+        && request.time >= resource.data.updatedAt + duration.value(2, 's');
+      // Nor made anew in a rush.
+      allow delete: if me(uid) && (resource == null || request.time >= resource.data.updatedAt + duration.value(2, 's'));
+
+      match /parts/{part} {
+        function headPath() {
+          return /databases/$(database)/documents/users/$(uid);
+        }
+        allow read: if me(uid);
+        // Only the copy that a save of the head adds, together with it: 10 pieces of 900 000 bytes at most.
+        allow create: if me(uid)
+          && request.resource.data.keys().hasOnly(['v', 'n', 'data'])
+          && request.resource.data.v is string && request.resource.data.v.size() <= 64
+          && request.resource.data.n is int && request.resource.data.n >= 0 && request.resource.data.n < 10
+          && part == request.resource.data.v + '-' + string(request.resource.data.n)
+          && request.resource.data.data is bytes && request.resource.data.data.size() <= 900000
+          && existsAfter(headPath())
+          && getAfter(headPath()).data.updatedAt == request.time
+          && getAfter(headPath()).data.added == request.resource.data.v;
+        allow update: if false;
+        // Never the current copy, as long as there is one.
+        allow delete: if me(uid)
+          && (!existsAfter(headPath()) || getAfter(headPath()).data.versionId != resource.data.v);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -33,11 +33,14 @@ const DEFAULT_PREFS: Prefs = { lang: "ar", theme: "system", hideAmounts: false, 
 const PREFS_KEY = "nsalek.prefs";
 
 function readPrefs(): Prefs {
+  return { ...DEFAULT_PREFS, ...storedPrefs() };
+}
+
+function storedPrefs(): Partial<Prefs> {
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    return raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : DEFAULT_PREFS;
+    return JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}");
   } catch {
-    return DEFAULT_PREFS;
+    return {};
   }
 }
 
@@ -74,7 +77,8 @@ export type AppCtx = {
   lang: Lang;
   t: (k: Key) => string;
   run: <T = Record<string, unknown>>(type: string, payload: Record<string, unknown>, commandId?: string) => Promise<T>;
-  saveMeta: (patch: Partial<MetaRecord>) => Promise<void>;
+  /** A function patch is computed from the row as it is now, inside the same transaction. */
+  saveMeta: (patch: Partial<MetaRecord> | ((row: MetaRecord) => Partial<MetaRecord>)) => Promise<void>;
   reload: () => Promise<void>;
   toast: (msg: string) => void;
   toastMsg: string | null;
@@ -160,7 +164,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setPrefs = useCallback((p: Partial<Prefs>) => {
     setPrefsState((old) => {
-      const next = { ...old, ...p };
+      // Over what is stored now: another tab may have changed or cleared something since.
+      const next = { ...old, ...storedPrefs(), ...p };
       try {
         localStorage.setItem(PREFS_KEY, JSON.stringify(next));
       } catch {
@@ -221,10 +226,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const saveMeta = useCallback(
-    async (patch: Partial<MetaRecord>) => {
+    async (patch: Partial<MetaRecord> | ((row: MetaRecord) => Partial<MetaRecord>)) => {
       if (!store) return;
       const next = await store.run("readwrite", async (tx) => {
-        const row = { ...((await tx.get("meta", "app")) as MetaRecord), ...patch };
+        const now = (await tx.get("meta", "app")) as MetaRecord;
+        const row = { ...now, ...(typeof patch === "function" ? patch(now) : patch) };
         await tx.put("meta", row);
         return row;
       });

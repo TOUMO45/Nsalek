@@ -70,9 +70,11 @@ const DAY = 86_400_000;
 
 /**
  * Based on what would be lost, not only on age: an old backup is fine while nothing changed since.
- * Every command writes audit events, so they count the unsaved changes.
+ * Every command writes audit events, so they count the unsaved changes. What the cloud copy holds
+ * (everything up to `cloudAt`, photos aside) is not lost either; what it does not hold yet counts
+ * by its own age, since it normally goes there within seconds.
  */
-export function backupStatus(data: LedgerData, lastBackupAt: string | null | undefined, now: Date): BackupStatus {
+export function backupStatus(data: LedgerData, lastBackupAt: string | null | undefined, now: Date, cloudAt?: string | null): BackupStatus {
   const real = new Set(realIds(data));
   const hasData = data.parties.some((p) => real.has(p.workspaceId)) || data.obligations.some((o) => real.has(o.workspaceId));
   if (!hasData) return { level: "none", changes: 0, days: null };
@@ -82,16 +84,18 @@ export function backupStatus(data: LedgerData, lastBackupAt: string | null | und
     if (!real.has(e.workspaceId)) continue;
     // ">=": an entry in the same millisecond may have missed the backup.
     if (lastBackupAt && e.at < lastBackupAt) continue;
+    if (cloudAt && e.at < cloudAt && e.action !== "attachment.add") continue;
     changes++;
     if (first === null || e.at < first) first = e.at;
   }
   const since = (iso: string) => Math.max(0, now.getTime() - Date.parse(iso));
-  if (!lastBackupAt) {
+  const safeAt = lastBackupAt ?? cloudAt;
+  if (!safeAt) {
     const urgent = changes >= 10 || (first !== null && since(first) > 3 * DAY);
     return { level: urgent ? "urgent" : "due", changes, days: null };
   }
-  const age = since(lastBackupAt);
-  const days = Math.floor(age / DAY);
+  const days = Math.floor(since(safeAt) / DAY);
+  const age = cloudAt && first !== null ? since(first) : since(safeAt);
   if (!changes) return { level: "ok", changes, days };
   const level = age >= 7 * DAY || changes >= 60 ? "urgent" : age >= 3 * DAY || changes >= 20 ? "due" : "ok";
   return { level, changes, days };

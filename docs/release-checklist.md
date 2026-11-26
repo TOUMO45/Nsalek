@@ -52,15 +52,18 @@ Status as of 2026-11-22. Each item is in exactly one category:
 | One-tap backup through a real share sheet; restore of a file received from Drive or WhatsApp | Simulated only. Try on Android Chrome and iPhone Safari. |
 | Voice entry with a real microphone, in Darija | Recognition was simulated; the rules are tested (`tests/voice.test.ts`). Real Darija accuracy of `ar-DZ` is **unknown**: record 50 real sentences per speaker and count wrong saves (target: 0). |
 
+| Accounts and cloud copy on the **live** project | Built and tested on emulators (2026-11-25): engine, rules, screens, two browsers side by side. Not yet switched on. Afterwards: Google sign-in in Chrome, Safari and the installed app; reset and confirmation emails (spam folder); a real second phone; a real weak network. Steps: `docs/cloud-activation.md`. |
+
 ## Blocked by provider (needs configuration and authorization)
 
 - Automated SMS/WhatsApp/email delivery (requires an official provider, consent, cost disclosure, delivery webhooks).
-- Cloud sync and team accounts (requires a backend; the clinic's Firebase project must **not** be reused).
+- Team accounts (several people with different rights on one notebook).
 - Payments, subscriptions, app-store releases.
 
 ## Deferred (P2)
 
-- Cloud sync. Command ids and the `commands` store are ready to serve as the outbox; conflict handling is not designed in code.
+- Live sync between phones (record by record). Today: a whole copy, combined within minutes.
+- Photos in the cloud copy.
 - Team roles (owner/operator/read-only), customer read-only links.
 - AI/OCR input. Voice entry exists (D26–D28) without any AI provider of ours.
 - Cross-currency settlement and converted dashboard estimates.
@@ -78,7 +81,8 @@ Status as of 2026-11-22. Each item is in exactly one category:
 
 ## Known limitations
 
-- Data lives in one browser profile; there is no multi-device use without manual backup/restore.
+- Without an account, data lives in one browser profile and moves only by backup files.
+- A cloud copy that was never made cannot come back: an entry made offline on a phone that is then lost is lost.
 - Statement PDFs depend on the browser's print engine. They were verified with Microsoft Edge (Chromium) only.
 - `canonical()` makes large unencrypted backups slower to open than encrypted ones (see `docs/performance.md`).
 - Payment method labels are notes, not bank integrations. Payment proofs are attachments, never automatic confirmation.
